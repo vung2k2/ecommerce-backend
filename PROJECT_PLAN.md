@@ -135,15 +135,15 @@ Acceptance criteria:
 
 ### 5.2. Authentication và người dùng
 
-- [ ] Thiết kế `User`, `RefreshToken` và `Address`.
-- [ ] Hỗ trợ đúng ba role cố định: `CUSTOMER`, `STAFF`, `ADMIN`.
+- [x] Thiết kế `User`, `RefreshToken` và `Address`.
+- [x] Hỗ trợ đúng ba role cố định: `CUSTOMER`, `STAFF`, `ADMIN`.
 - [x] Register với email duy nhất và password được hash bằng bcrypt.
-- [ ] Login và phát hành access/refresh token.
-- [ ] Access token có thời hạn khoảng 15 phút.
-- [ ] Refresh token có thời hạn khoảng 30 ngày và chỉ lưu hash.
-- [ ] Rotate refresh token sau mỗi lần sử dụng.
-- [ ] Phát hiện refresh-token reuse và thu hồi token family hoặc toàn bộ phiên liên quan.
-- [ ] Logout một phiên và logout tất cả thiết bị.
+- [x] Login và phát hành access/refresh token.
+- [x] Access token có thời hạn khoảng 15 phút.
+- [x] Refresh token có thời hạn khoảng 30 ngày và chỉ lưu hash.
+- [x] Rotate refresh token sau mỗi lần sử dụng.
+- [x] Phát hiện refresh-token reuse và thu hồi token family hoặc toàn bộ phiên liên quan.
+- [x] Logout một phiên và logout tất cả thiết bị.
 - [ ] Tài khoản `CUSTOMER` sử dụng các API mua hàng và chỉ thao tác trên tài nguyên của chính mình.
 - [ ] Tài khoản `STAFF` vẫn sử dụng được chức năng khách hàng và được cấp thêm một tập permission cụ thể.
 - [ ] Tài khoản `ADMIN` có toàn bộ permission và có thể quản lý tài khoản nhân viên.
