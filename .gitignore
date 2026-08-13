@@ -1,13 +1,47 @@
+# Dependencies & Package Lockfiles
 node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpm-store
+
+# Build & Compilation Output
 dist/
-coverage/
+build/
+out/
+*.tsbuildinfo
+
+# Prisma Generated Client
+src/generated/
+
+# Environment Variables & Credentials
 .env
 .env.*
 !.env.example
-src/generated/
+
+# Logs
+logs/
 *.log
-.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# IDEs & Editor Configuration
 .idea/
 .vscode/
-package-lock.json
+*.swp
+*.swo
 
+# System Junk Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Temporary & Cache
+.cache/
+.temp/
+.tmp/

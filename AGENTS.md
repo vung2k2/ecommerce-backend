@@ -139,7 +139,7 @@ Khi một quyết định mới thay đổi phạm vi hoặc kiến trúc, đề
 - Tuân theo chuẩn **Conventional Commits**: `<type>(<scope>): <description>` (ví dụ: `feat(auth): add customer registration`).
 - Commit message viết bằng tiếng Anh, dùng dạng mệnh lệnh ở thì hiện tại (ví dụ: `add` thay vì `added`, `fix` thay vì `fixed`).
 - **Quy trình khi người dùng yêu cầu "commit"**: Khi người dùng bảo `commit`, AI sẽ tự động thực hiện trọn gói 3 bước:
-  1. Staging & Commit các file đã thay đổi (không bao giờ commit `package-lock.json`).
+  1. Staging & Commit các file đã thay đổi.
   2. Đẩy code lên GitHub (`git push`).
   3. Kiểm tra và cập nhật các mục đã hoàn thành `[x]` trong checklist của `PROJECT_PLAN.md`.
 - Các loại `<type>` quy định:
