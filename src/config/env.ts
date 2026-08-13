@@ -7,6 +7,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   DATABASE_URL: z.url().startsWith('postgresql://'),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
 });
 
 const result = envSchema.safeParse(process.env);

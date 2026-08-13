@@ -27,7 +27,7 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, request, respo
     return;
   }
 
-  logger.error({ error, requestId: request.id }, 'Unhandled request error');
+  logger.error({ err: error, requestId: request.id }, 'Unhandled request error');
 
   response.status(500).json({
     error: {

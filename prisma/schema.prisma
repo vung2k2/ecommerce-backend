@@ -25,3 +25,14 @@ model User {
 
   @@map("users")
 }
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash     String   @unique @map("token_hash") @db.VarChar(255)
+  familyId    String   @map("family_id") @db.Uuid
+  expiresAt     DateTime @map("expires_at") @db.Timestamptz(3)
+  isRevoked     Boolean  @default(false) @map("is_revoked")
+  userId      String   @map("user_id") @db.Uuid
+
+  @@map("refresh_tokens")
+}
