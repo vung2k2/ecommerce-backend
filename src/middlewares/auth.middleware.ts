@@ -2,8 +2,8 @@ import type { RequestHandler } from 'express';
 import { AppError } from '../utils/app-error.js';
 import { jwtService } from '../utils/jwt.js';
 
-export const requireAuth: RequestHandler = (request, _response, next) => {
-  const authHeader = request.headers.authorization;
+export const requireAuth: RequestHandler = (req, _res, next) => {
+  const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new AppError(401, 'UNAUTHORIZED', 'Access token is required');
@@ -17,7 +17,7 @@ export const requireAuth: RequestHandler = (request, _response, next) => {
 
   try {
     const payload = jwtService.verifyAccessToken(token);
-    request.user = payload;
+    req.user = payload;
     next();
   } catch {
     throw new AppError(401, 'UNAUTHORIZED', 'Invalid or expired access token');

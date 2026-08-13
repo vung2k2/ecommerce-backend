@@ -23,9 +23,9 @@ export function createApp() {
   app.use(
     pinoHttp({
       logger,
-      genReqId: (request, response) => {
-        const requestId = request.headers['x-request-id']?.toString() ?? randomUUID();
-        response.setHeader('x-request-id', requestId);
+      genReqId: (req, res) => {
+        const requestId = req.headers['x-request-id']?.toString() ?? randomUUID();
+        res.setHeader('x-request-id', requestId);
         return requestId;
       },
       serializers: {
@@ -63,16 +63,16 @@ export function createApp() {
     }),
   );
 
-  app.get('/health/live', (_request, response) => {
-    response.status(200).json({ status: 'ok' });
+  app.get('/health/live', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
   });
 
-  app.get('/health/ready', async (_request, response) => {
+  app.get('/health/ready', async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      response.status(200).json({ status: 'ready', dependencies: { database: 'up' } });
+      res.status(200).json({ status: 'ready', dependencies: { database: 'up' } });
     } catch {
-      response.status(503).json({ status: 'not_ready', dependencies: { database: 'down' } });
+      res.status(503).json({ status: 'not_ready', dependencies: { database: 'down' } });
     }
   });
 

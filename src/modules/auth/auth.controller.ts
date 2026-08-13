@@ -66,10 +66,10 @@ export const authController = {
    *       422:
    *         description: Validation error (invalid input)
    */
-  register: (async (request, response) => {
-    const user = await authService.register(request.body);
+  register: (async (req, res) => {
+    const user = await authService.register(req.body);
 
-    return sendSuccess(response, { user }, 201);
+    return sendSuccess(res, { user }, 201);
   }) as RequestHandler<Record<string, never>, unknown, RegisterInput>,
 
   /**
@@ -118,10 +118,10 @@ export const authController = {
    *       422:
    *         description: Validation error (invalid input)
    */
-  login: (async (request, response) => {
-    const result = await authService.login(request.body);
+  login: (async (req, res) => {
+    const result = await authService.login(req.body);
 
-    return sendSuccess(response, result, 200);
+    return sendSuccess(res, result, 200);
   }) as RequestHandler<Record<string, never>, unknown, LoginInput>,
 
   /**
@@ -148,9 +148,9 @@ export const authController = {
    *       401:
    *         description: Invalid/expired refresh token or reuse detected
    */
-  refreshToken: (async (request, response) => {
-    const result = await authService.refreshToken(request.body);
-    return sendSuccess(response, result, 200);
+  refreshToken: (async (req, res) => {
+    const result = await authService.refreshToken(req.body);
+    return sendSuccess(res, result, 200);
   }) as RequestHandler<Record<string, never>, unknown, RefreshTokenInput>,
 
   /**
@@ -175,9 +175,9 @@ export const authController = {
    *       200:
    *         description: Logged out successfully
    */
-  logout: (async (request, response) => {
-    await authService.logout(request.body);
-    return sendSuccess(response, { message: 'Logged out successfully' }, 200);
+  logout: (async (req, res) => {
+    await authService.logout(req.body);
+    return sendSuccess(res, { message: 'Logged out successfully' }, 200);
   }) as RequestHandler<Record<string, never>, unknown, LogoutInput>,
 
   /**
@@ -195,8 +195,8 @@ export const authController = {
    *       401:
    *         description: Unauthorized (Invalid or missing access token)
    */
-  logoutAll: (async (request, response) => {
-    await authService.logoutAll(request.user.userId);
-    return sendSuccess(response, { message: 'Logged out from all devices successfully' }, 200);
+  logoutAll: (async (req, res) => {
+    await authService.logoutAll(req.user.userId);
+    return sendSuccess(res, { message: 'Logged out from all devices successfully' }, 200);
   }) as RequestHandler,
 };

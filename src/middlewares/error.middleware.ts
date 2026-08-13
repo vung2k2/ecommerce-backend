@@ -3,37 +3,37 @@ import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { AppError } from '../utils/app-error.js';
 
-export const notFoundHandler: RequestHandler = (request, response) => {
-  response.status(404).json({
+export const notFoundHandler: RequestHandler = (req, res) => {
+  res.status(404).json({
     error: {
       code: 'ROUTE_NOT_FOUND',
-      message: `Route ${request.method} ${request.originalUrl} was not found`,
-      requestId: request.id,
+      message: `Route ${req.method} ${req.originalUrl} was not found`,
+      requestId: req.id,
     },
   });
 };
 
-export const errorHandler: ErrorRequestHandler = (error: unknown, request, response, next) => {
+export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next) => {
   void next;
 
   if (error instanceof AppError) {
-    response.status(error.statusCode).json({
+    res.status(error.statusCode).json({
       error: {
         code: error.code,
         message: error.message,
-        requestId: request.id,
+        requestId: req.id,
       },
     });
     return;
   }
 
-  logger.error({ err: error, requestId: request.id }, 'Unhandled request error');
+  logger.error({ err: error, requestId: req.id }, 'Unhandled request error');
 
-  response.status(500).json({
+  res.status(500).json({
     error: {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred',
-      requestId: request.id,
+      requestId: req.id,
       ...(env.NODE_ENV === 'development' && error instanceof Error
         ? { details: error.message }
         : {}),

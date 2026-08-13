@@ -2,15 +2,15 @@ import type { RequestHandler } from 'express';
 import type { ZodType } from 'zod';
 
 export function validateBody(schema: ZodType): RequestHandler {
-  return (request, response, next) => {
-    const result = schema.safeParse(request.body as unknown);
+  return (req, res, next) => {
+    const result = schema.safeParse(req.body as unknown);
 
     if (!result.success) {
-      response.status(422).json({
+      res.status(422).json({
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Request body is invalid',
-          requestId: request.id,
+          requestId: req.id,
           details: result.error.issues.map((issue) => ({
             path: issue.path.join('.'),
             message: issue.message,
@@ -20,7 +20,7 @@ export function validateBody(schema: ZodType): RequestHandler {
       return;
     }
 
-    request.body = result.data;
+    req.body = result.data;
     next();
   };
 }
