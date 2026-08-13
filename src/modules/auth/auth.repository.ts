@@ -1,17 +1,32 @@
 import { prisma } from '../../database/prisma.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import type { RegisterInput } from './auth.schema.js';
 
+type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
+
 export const authRepository = {
-  findUserByEmail(email: string) {
-    return prisma.user.findUnique({ where: { email } });
+  lockUserSessions(userId: string, tx: Prisma.TransactionClient) {
+    return tx.$queryRaw<Array<{ locked: string }>>`
+      SELECT pg_advisory_xact_lock(hashtextextended(${`auth-user:${userId}`}, 0))::text AS locked
+    `;
   },
 
-  findUserById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
+  lockTokenFamily(familyId: string, tx: Prisma.TransactionClient) {
+    return tx.$queryRaw<Array<{ locked: string }>>`
+      SELECT pg_advisory_xact_lock(hashtextextended(${`auth-family:${familyId}`}, 0))::text AS locked
+    `;
   },
 
-  createCustomer(input: RegisterInput & { passwordHash: string }) {
-    return prisma.user.create({
+  findUserByEmail(email: string, tx: PrismaClientOrTx = prisma) {
+    return tx.user.findUnique({ where: { email } });
+  },
+
+  findUserById(id: string, tx: PrismaClientOrTx = prisma) {
+    return tx.user.findUnique({ where: { id } });
+  },
+
+  createCustomer(input: RegisterInput & { passwordHash: string }, tx: PrismaClientOrTx = prisma) {
+    return tx.user.create({
       data: {
         email: input.email,
         passwordHash: input.passwordHash,
@@ -27,41 +42,44 @@ export const authRepository = {
     });
   },
 
-  createRefreshToken(data: {
-    userId: string;
-    familyId: string;
-    tokenHash: string;
-    expiresAt: Date;
-  }) {
-    return prisma.refreshToken.create({
+  createRefreshToken(
+    data: {
+      userId: string;
+      familyId: string;
+      tokenHash: string;
+      expiresAt: Date;
+    },
+    tx: PrismaClientOrTx = prisma,
+  ) {
+    return tx.refreshToken.create({
       data,
     });
   },
 
-  findRefreshTokenByHash(tokenHash: string) {
-    return prisma.refreshToken.findUnique({ where: { tokenHash } });
+  findRefreshTokenByHash(tokenHash: string, tx: PrismaClientOrTx = prisma) {
+    return tx.refreshToken.findUnique({ where: { tokenHash } });
   },
 
-  updateRefreshToken(id: string, data: { isRevoked?: boolean }) {
-    return prisma.refreshToken.update({
-      where: { id },
-      data,
+  claimActiveRefreshToken(id: string, tx: PrismaClientOrTx = prisma) {
+    return tx.refreshToken.updateMany({
+      where: { id, isRevoked: false },
+      data: { isRevoked: true },
     });
   },
 
-  revokeTokenFamily(familyId: string) {
-    return prisma.refreshToken.updateMany({
+  revokeTokenFamily(familyId: string, tx: PrismaClientOrTx = prisma) {
+    return tx.refreshToken.updateMany({
       where: { familyId },
       data: { isRevoked: true },
     });
   },
 
-  deleteRefreshToken(id: string) {
-    return prisma.refreshToken.delete({ where: { id } });
+  deleteRefreshToken(id: string, tx: PrismaClientOrTx = prisma) {
+    return tx.refreshToken.delete({ where: { id } });
   },
 
-  deleteAllUserRefreshTokens(userId: string) {
-    return prisma.refreshToken.deleteMany({
+  deleteAllUserRefreshTokens(userId: string, tx: PrismaClientOrTx = prisma) {
+    return tx.refreshToken.deleteMany({
       where: { userId },
     });
   },

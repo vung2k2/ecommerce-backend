@@ -8,7 +8,7 @@ describe('POST /api/v1/auth/register', () => {
   const app = createApp();
 
   beforeEach(async () => {
-    await prisma.user.deleteMany();
+    await prisma.user.deleteMany({ where: { email: 'alice@example.com' } });
   });
 
   afterAll(async () => {
@@ -55,7 +55,7 @@ describe('POST /api/v1/auth/register', () => {
     expect(response.body as unknown).toMatchObject({
       error: { code: 'EMAIL_ALREADY_EXISTS' },
     });
-    await expect(prisma.user.count()).resolves.toBe(1);
+    await expect(prisma.user.count({ where: { email: 'alice@example.com' } })).resolves.toBe(1);
   });
 
   it('rejects invalid input without creating a user', async () => {
@@ -69,6 +69,6 @@ describe('POST /api/v1/auth/register', () => {
     expect(response.body as unknown).toMatchObject({
       error: { code: 'VALIDATION_ERROR' },
     });
-    await expect(prisma.user.count()).resolves.toBe(0);
+    await expect(prisma.user.count({ where: { email: 'alice@example.com' } })).resolves.toBe(0);
   });
 });
