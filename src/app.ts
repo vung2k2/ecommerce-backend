@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -29,12 +30,12 @@ export function createApp() {
         return requestId;
       },
       serializers: {
-        req: (req) => ({
+        req: (req: IncomingMessage & { id?: string }) => ({
           id: req.id,
           method: req.method,
           url: req.url,
         }),
-        res: (res) => ({
+        res: (res: ServerResponse) => ({
           statusCode: res.statusCode,
         }),
       },

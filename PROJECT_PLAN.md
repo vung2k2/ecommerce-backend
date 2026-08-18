@@ -162,8 +162,8 @@ Acceptance criteria:
 - [ ] Ghi audit log khi tạo/vô hiệu hóa staff, đổi permission và thực hiện thao tác quản trị nhạy cảm.
 - [ ] Khi staff bị vô hiệu hóa hoặc đổi quyền, thu hồi refresh token; access token ngắn hạn có thể còn hiệu lực tối đa 15 phút ở phiên bản đầu.
 - [ ] Rate limit riêng cho register, login và refresh.
-- [ ] Xem/cập nhật hồ sơ cá nhân.
-- [ ] CRUD nhiều địa chỉ giao hàng; chỉ một địa chỉ mặc định.
+- [x] Xem/cập nhật hồ sơ cá nhân.
+- [x] CRUD nhiều địa chỉ giao hàng; chỉ một địa chỉ mặc định.
 - [ ] Seed hoặc script tạo admin, không có admin password hard-code.
 
 Acceptance criteria:

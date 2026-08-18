@@ -23,6 +23,7 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   refreshTokens RefreshToken[]
+  addresses     Address[]
 
   @@map("users")
 }
@@ -39,4 +40,22 @@ model RefreshToken {
   @@index([userId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+model Address {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  recipientName String   @map("recipient_name") @db.VarChar(100)
+  phone         String   @db.VarChar(20)
+  province      String   @db.VarChar(100)
+  district      String   @db.VarChar(100)
+  ward          String   @db.VarChar(100)
+  streetAddress String   @map("street_address") @db.VarChar(255)
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("addresses")
 }

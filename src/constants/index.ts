@@ -13,3 +13,4 @@ export const AUTH_CONSTANTS = {
   BCRYPT_SALT_ROUNDS: 12,
 } as const;
 
+export const PHONE_REGEX = /^(0|\+84)[35789][0-9]{8}$/;
