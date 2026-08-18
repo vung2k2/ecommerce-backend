@@ -168,13 +168,19 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- User không truy cập được tài nguyên của user khác.
-- Staff chỉ gọi được endpoint có permission đã cấp; quyền được kiểm tra ở backend, không phụ thuộc giao diện.
-- API phân biệt `401 Unauthorized` khi chưa xác thực và `403 Forbidden` khi thiếu quyền.
-- Thay đổi permission có audit record và phiên refresh cũ không tiếp tục sử dụng được.
+- User không truy cập hoặc sửa đổi được tài nguyên của user khác (profile, address, order).
+- Cập nhật profile (`PATCH /users/me`) không cho phép sửa `role`, `isActive` hay ownership qua payload.
+- Mỗi user có tối đa một địa chỉ mặc định (`isDefault = true`), kể cả khi tạo/sửa/set-default đồng thời (được bảo vệ bởi PostgreSQL Partial Unique Index).
+- Staff chỉ gọi được endpoint có permission đã cấp; quyền được kiểm tra ở backend qua middleware, không phụ thuộc giao diện; `ADMIN` bypass permission check; `CUSTOMER` bị từ chối 403 trên toàn bộ `/admin`.
+- API phân biệt rõ `401 Unauthorized` khi chưa xác thực và `403 Forbidden` khi thiếu quyền.
+- Không thể vô hiệu hóa hoặc hạ quyền tài khoản `ADMIN` cuối cùng, kể cả khi có 2 request đồng thời.
+- Staff không thể tự cấp permission hoặc thao tác quản trị trên staff khác.
+- Thay đổi permission hoặc vô hiệu hóa staff có audit log và thu hồi refresh token của staff đó ngay lập tức.
 - Token hết hạn, đã thu hồi hoặc sai chữ ký đều bị từ chối.
-- Hai request refresh đồng thời không tạo ra hai refresh token hợp lệ.
-- Password và token thô không xuất hiện trong database hoặc log.
+- Hai request refresh đồng thời không tạo ra hai refresh token hợp lệ (chống race condition).
+- Refresh-token reuse phát hiện và thu hồi toàn bộ token family liên quan.
+- Rate limiting cho register, login và refresh trả về `429 Too Many Requests` khi vượt ngưỡng.
+- Password và token thô không bao giờ xuất hiện trong database hoặc log.
 
 ### 5.3. Catalog và media
 
@@ -194,10 +200,13 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Filter kết hợp và pagination trả kết quả ổn định.
-- SKU, slug và quan hệ catalog được bảo vệ bằng constraint.
-- User thường không thể upload hoặc thay đổi catalog.
-- Ứng dụng không giữ AWS access key trong source hoặc Docker image.
+- Public API chỉ trả sản phẩm đang ở trạng thái `ACTIVE`; không trả sản phẩm `DRAFT` hoặc `INACTIVE`.
+- Product và variant đã từng xuất hiện trong đơn hàng (`Order`) không bị hard-delete khỏi database (chỉ chuyển sang `INACTIVE`).
+- Filter kết hợp (keyword, category, brand, price range, specification) và pagination trả kết quả chính xác, ổn định.
+- SKU, slug và quan hệ catalog được bảo vệ bằng database unique constraint.
+- User thường không thể upload hoặc thay đổi catalog (yêu cầu permission `catalog:write`).
+- Cache Redis cho catalog tự động invalidate khi admin/staff cập nhật dữ liệu liên quan và không trả dữ liệu cũ.
+- Ứng dụng không giữ AWS access key trong source code hoặc Docker image (dùng S3 presigned URL).
 
 ### 5.4. Tồn kho
 
@@ -213,9 +222,11 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Nhiều checkout đồng thời không thể reserve vượt available stock.
-- Inventory tổng và movement ledger có thể đối chiếu.
-- Retry job hoặc callback không trừ hay hoàn kho hai lần.
+- Nhiều checkout đồng thời không thể reserve vượt available stock (`onHand - reserved`); tồn kho không bao giờ bị âm ở cả application và database (sử dụng conditional update / locking).
+- Mọi thao tác nhập, giảm, điều chỉnh tồn kho đều ghi lại stock movement/audit ledger tương ứng.
+- Retry job hoặc callback không trừ hay hoàn kho hai lần (idempotency theo business event).
+- Release reservation hoàn trả đúng số lượng giữ hàng khi thanh toán thất bại, hết hạn hoặc đơn hàng bị hủy.
+- Inventory tổng và movement ledger luôn đối chiếu khớp nhau.
 
 ### 5.5. Giỏ hàng và coupon
 
@@ -231,9 +242,12 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Cart total và checkout total dùng cùng pricing logic.
-- Coupon hết hạn, vượt quota hoặc không đủ điều kiện không được áp dụng.
-- Hai checkout đồng thời không vượt usage limit.
+- Mỗi user chỉ có đúng một active cart tại một thời điểm.
+- Cart total và checkout total luôn được tính lại từ database (giá variant và tồn kho hiện tại); server không tin total do client gửi.
+- Variant inactive hoặc hết hàng được cảnh báo rõ ràng khi xem và chặn checkout.
+- Coupon hết hạn, vượt quota tổng, vượt quota user hoặc không đủ điều kiện đơn hàng tối thiểu không được áp dụng.
+- Hai checkout đồng thời dùng cùng coupon không thể vượt quá usage limit của coupon.
+- Coupon usage và tạo đơn hàng được ghi atomically trong cùng transaction.
 
 ### 5.6. Order và checkout
 
@@ -261,10 +275,13 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Order lưu snapshot, không thay đổi khi catalog được chỉnh sửa sau đó.
-- Không thể bỏ qua hoặc đảo ngược state trái business rule.
-- Retry checkout không tạo order ngoài ý muốn nếu client gửi cùng idempotency key.
-- Job hết hạn có thể chạy lại an toàn.
+- Order lưu snapshot đầy đủ (tên sản phẩm, SKU, options, đơn giá, địa chỉ giao hàng), không bị thay đổi khi catalog chỉnh sửa sau này.
+- Checkout (validate cart, tính giá, áp coupon, reserve stock, tạo order) thực thi atomically trong một database transaction.
+- COD tạo đơn ở trạng thái `CONFIRMED`; VNPay tạo đơn ở trạng thái `PENDING_PAYMENT` và giữ tồn kho có thời hạn.
+- State machine kiểm soát chặt chẽ: không thể nhảy cóc hoặc đảo ngược trạng thái đơn hàng trái business rules.
+- User chỉ xem và thao tác trên đơn hàng của chính mình; khách hàng chỉ được hủy đơn trước khi đơn chuyển sang `PROCESSING`.
+- Chỉ các trạng thái hợp lệ mới được hủy; retry cancel đơn hàng không hoàn kho 2 lần.
+- BullMQ job xử lý đơn hàng hết hạn thanh toán an toàn, tự động hủy đơn và giải phóng stock reservation.
 
 ### 5.7. VNPay Sandbox PAY 2.1.0
 
@@ -285,10 +302,13 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Callback giả mạo hoặc bị sửa tham số không thay đổi database.
-- Callback trùng chỉ tạo một lần chuyển trạng thái hợp lệ.
-- Return thành công nhưng IPN thất bại không làm order thành `PAID`.
-- Payment thành công atomically cập nhật payment, order và stock reservation.
+- Callback giả mạo, sai signature, sai merchant, sai transaction reference hoặc sai amount đều trả đúng `RspCode` và không thay đổi database.
+- Amount gửi VNPay được nhân 100 theo contract; timestamp tạo/hết hạn tuân thủ timezone `Asia/Ho_Chi_Minh`.
+- Return URL chỉ hiển thị kết quả cho người dùng; chỉ IPN hợp lệ mới là nguồn server-to-server xác nhận thanh toán.
+- IPN trùng lặp được xử lý idempotent (dùng unique constraint & transaction), không cập nhật đơn hàng lần 2.
+- IPN thành công cập nhật atomically: payment `PAID`, order `CONFIRMED`, và commit stock reservation.
+- IPN hợp lệ gửi đến sau khi order đã bị hủy/hết hạn được xử lý theo policy rõ ràng (ghi nhận audit record phục vụ đối soát, không đảo ngược đơn hàng sai luật).
+- Dữ liệu audit log không chứa hash secret hoặc thông tin thẻ nhạy cảm.
 
 Tài liệu tham chiếu: [VNPay Sandbox PAY](https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.html).
 
@@ -303,8 +323,11 @@ Tài liệu tham chiếu: [VNPay Sandbox PAY](https://sandbox.vnpayment.vn/apis/
 
 Acceptance criteria:
 
-- Không thể review sản phẩm chưa mua hoặc order chưa giao.
-- Aggregate report có test đối chiếu với dữ liệu order mẫu.
+- Không thể review sản phẩm chưa mua hoặc đơn hàng chưa ở trạng thái `DELIVERED`.
+- Mỗi order item chỉ được review tối đa một lần; hai request review đồng thời cho cùng order item không tạo 2 bản ghi.
+- Rating (1-5 sao) và nội dung bình luận được validate độ dài và kiểu dữ liệu chặt chẽ.
+- Chỉ ADMIN hoặc STAFF có permission `review:moderate` mới có quyền ẩn review vi phạm và lưu lý do kiểm duyệt.
+- Báo cáo doanh thu và sản phẩm bán chạy (`report:read`) chỉ tính từ các đơn hàng ở trạng thái hoàn tất (`DELIVERED`), với khoảng thời gian và timezone rõ ràng, không tính trùng lặp.
 
 ### 5.9. OpenAPI và tài liệu vận hành
 
@@ -315,6 +338,14 @@ Acceptance criteria:
 - [ ] Viết README hướng dẫn local setup, migration, seed, test và Docker.
 - [ ] Viết runbook deploy, rollback, backup, restore và troubleshooting.
 - [ ] Cung cấp `.env.example` không chứa secret.
+
+Acceptance criteria:
+
+- OpenAPI document tại `/docs` khởi tạo và validate thành công, mô tả đầy đủ toàn bộ endpoint thực tế.
+- Mỗi endpoint mô tả rõ authentication, path/query/body schema, response thành công và các error codes (`400`, `401`, `403`, `404`, `409`, `422`, `429`).
+- README hướng dẫn đầy đủ, một developer mới có thể chạy migration, seed, test và khởi chạy local stack mà không gặp lỗi.
+- Quy trình rollback và khôi phục database backup đã được chạy thử nghiệm thực tế.
+- File `.env.example` cung cấp đủ toàn bộ biến môi trường cần thiết mà không chứa secret thật.
 
 ## 6. API contract chính
 
@@ -442,6 +473,14 @@ Mục tiêu coverage tối thiểu 80% cho auth, inventory, coupon, order và pa
 - [ ] Backup PostgreSQL hằng ngày bằng `pg_dump` lên private S3 và giữ bảy bản.
 - [ ] Thử restore backup thay vì chỉ kiểm tra file tồn tại.
 - [ ] Viết checklist teardown để tránh resource tiếp tục phát sinh phí.
+
+Acceptance criteria:
+
+- CI chạy tự động trên pull request và push vào `main`; tự động chặn merge nếu lint, typecheck, Prisma validation, test hoặc build thất bại.
+- Docker image được build nhiều stage, tag bằng commit SHA và push an toàn lên GitHub Container Registry (GHCR).
+- CD deploy lên EC2 tự động chạy migration an toàn, khởi động container và xác nhận endpoint `/health/ready` trả về HTTP 200 trước khi hoàn tất.
+- Quy trình rollback application về image tag trước đó và khôi phục database từ file backup S3 được kiểm chứng hoạt động.
+- Secret được quản lý an toàn trên server/GitHub Actions, không bị bake vào image hoặc in ra log.
 
 AWS Free Tier và danh sách instance đủ điều kiện có thể thay đổi theo tài khoản và thời điểm. Luôn kiểm tra console và [AWS Free Tier](https://aws.amazon.com/free/free-tier-faqs/) trước khi tạo resource; không xem “Free Tier” là miễn phí vĩnh viễn.
 
