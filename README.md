@@ -42,6 +42,8 @@ npm run prisma:studio
 
 Swagger hiện chỉ được setup sẵn. Endpoint documentation chi tiết sẽ được bổ sung sau khi các API ổn định.
 
+Các quyết định kiến trúc và trade-off quan trọng được lưu trong [Architecture Decision Records](docs/adr/README.md).
+
 ## API đăng ký mẫu
 
 ```http
