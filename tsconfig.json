@@ -18,6 +18,7 @@
   "include": [
     "src/**/*.ts",
     "tests/**/*.ts",
+    "prisma/**/*.ts",
     "prisma.config.ts",
     "vitest.config.ts",
     "vitest.setup.ts"

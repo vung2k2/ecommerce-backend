@@ -80,7 +80,15 @@ Khi một quyết định mới thay đổi phạm vi hoặc kiến trúc, đề
 ## Quy ước kỹ thuật bắt buộc
 
 - Giữ kiến trúc modular monolith; không tách microservice nếu chưa cập nhật plan.
-- Controller không chứa business logic hoặc Prisma transaction phức tạp.
+- Controller không chứa business logic hoặc Prisma transaction phức tạp; không dùng `try/catch` bọc ngoài controller handlers (tận dụng Express 5 tự động chuyển error sang centralized `errorHandler`).
+- Controller handler bắt buộc có JSDoc block `@openapi` đồng bộ mô tả endpoint, tags, security, requestBody/params và responses.
+- Khai báo kiểu `RequestHandler` generic đồng nhất cho controller handlers:
+  - Có Params & Body: `as RequestHandler<ParamsDto, unknown, BodyDto>`
+  - Chỉ có Body: `as RequestHandler<Record<string, never>, unknown, BodyDto>`
+  - Chỉ có Params: `as RequestHandler<ParamsDto>`
+  - Có Query: `as RequestHandler` kết hợp parse/cast an toàn trong handler.
+- Response trả về chuẩn hóa qua helper `sendSuccess` hoặc `sendPaginated`.
+- Trước khi tạo file controller, service, repository hoặc schema cho bất kỳ module mới nào, bắt buộc đọc (inspect) các module đã hoàn thiện (`users`, `auth`) làm Golden Pattern để đảm bảo tính nhất quán tuyệt đối trong toàn bộ repository.
 - TypeScript phải chạy strict; tránh `any`, non-null assertion và type cast thiếu kiểm chứng.
 - Validate path, query, body, header cần thiết và environment variables tại boundary.
 - Không tin price, discount, total, ownership, role hoặc trạng thái do client gửi.

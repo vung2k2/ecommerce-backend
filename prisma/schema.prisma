@@ -14,16 +14,18 @@ enum Role {
 }
 
 model User {
-  id            String         @id @default(uuid()) @db.Uuid
-  email         String         @unique @db.VarChar(255)
-  passwordHash  String         @map("password_hash") @db.VarChar(255)
-  fullName      String         @map("full_name") @db.VarChar(100)
-  role          Role           @default(CUSTOMER)
-  isActive      Boolean        @default(true) @map("is_active")
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id            String           @id @default(uuid()) @db.Uuid
+  email         String           @unique @db.VarChar(255)
+  passwordHash  String           @map("password_hash") @db.VarChar(255)
+  fullName      String           @map("full_name") @db.VarChar(100)
+  role          Role             @default(CUSTOMER)
+  isActive      Boolean          @default(true) @map("is_active")
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
   refreshTokens RefreshToken[]
   addresses     Address[]
+  permissions   UserPermission[]
+  auditLogs     AuditLog[]
 
   @@map("users")
 }
@@ -58,4 +60,31 @@ model Address {
 
   @@index([userId])
   @@map("addresses")
+}
+
+model UserPermission {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  permission String   @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+  @@index([userId])
+  @@map("user_permissions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  targetType String   @map("target_type") @db.VarChar(50)
+  targetId   String?  @map("target_id") @db.VarChar(255)
+  payload    Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
 }

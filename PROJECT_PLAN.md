@@ -144,27 +144,27 @@ Acceptance criteria:
 - [x] Rotate refresh token sau mỗi lần sử dụng.
 - [x] Phát hiện refresh-token reuse và thu hồi token family hoặc toàn bộ phiên liên quan.
 - [x] Logout một phiên và logout tất cả thiết bị.
-- [ ] Tài khoản `CUSTOMER` sử dụng các API mua hàng và chỉ thao tác trên tài nguyên của chính mình.
-- [ ] Tài khoản `STAFF` vẫn sử dụng được chức năng khách hàng và được cấp thêm một tập permission cụ thể.
-- [ ] Tài khoản `ADMIN` có toàn bộ permission và có thể quản lý tài khoản nhân viên.
-- [ ] Thiết kế danh sách permission cố định trong code, tối thiểu gồm:
+- [x] Tài khoản `CUSTOMER` sử dụng các API mua hàng và chỉ thao tác trên tài nguyên của chính mình.
+- [x] Tài khoản `STAFF` vẫn sử dụng được chức năng khách hàng và được cấp thêm một tập permission cụ thể.
+- [x] Tài khoản `ADMIN` có toàn bộ permission và có thể quản lý tài khoản nhân viên.
+- [x] Thiết kế danh sách permission cố định trong code, tối thiểu gồm:
   - `catalog:read`, `catalog:write`
   - `inventory:read`, `inventory:write`
   - `order:read`, `order:update`
   - `coupon:manage`
   - `review:moderate`
   - `report:read`
-- [ ] Lưu permission được cấp trực tiếp cho `STAFF` qua quan hệ `UserPermission`; không xây role tùy chỉnh hoặc bảng role-permission động.
-- [ ] Tạo middleware `requirePermission(...)` để bảo vệ từng admin/staff API theo permission thay vì kiểm tra tên role trong controller.
-- [ ] Quy ước `ADMIN` bypass permission check; `STAFF` phải có permission tương ứng; `CUSTOMER` không được gọi API quản trị.
-- [ ] Chỉ `ADMIN` được tạo/vô hiệu hóa staff và thay đổi permission của staff.
-- [ ] Không cho vô hiệu hóa hoặc hạ quyền tài khoản `ADMIN` cuối cùng.
-- [ ] Ghi audit log khi tạo/vô hiệu hóa staff, đổi permission và thực hiện thao tác quản trị nhạy cảm.
-- [ ] Khi staff bị vô hiệu hóa hoặc đổi quyền, thu hồi refresh token; access token ngắn hạn có thể còn hiệu lực tối đa 15 phút ở phiên bản đầu.
-- [ ] Rate limit riêng cho register, login và refresh.
+- [x] Lưu permission được cấp trực tiếp cho `STAFF` qua quan hệ `UserPermission`; không xây role tùy chỉnh hoặc bảng role-permission động.
+- [x] Tạo middleware `requirePermission(...)` để bảo vệ từng admin/staff API theo permission thay vì kiểm tra tên role trong controller.
+- [x] Quy ước `ADMIN` bypass permission check; `STAFF` phải có permission tương ứng; `CUSTOMER` không được gọi API quản trị.
+- [x] Chỉ `ADMIN` được tạo/vô hiệu hóa staff và thay đổi permission của staff.
+- [x] Không cho vô hiệu hóa hoặc hạ quyền tài khoản `ADMIN` cuối cùng.
+- [x] Ghi audit log khi tạo/vô hiệu hóa staff, đổi permission và thực hiện thao tác quản trị nhạy cảm.
+- [x] Khi staff bị vô hiệu hóa hoặc đổi quyền, thu hồi refresh token; access token ngắn hạn có thể còn hiệu lực tối đa 15 phút ở phiên bản đầu.
+- [x] Rate limit riêng cho register, login và refresh.
 - [x] Xem/cập nhật hồ sơ cá nhân.
 - [x] CRUD nhiều địa chỉ giao hàng; chỉ một địa chỉ mặc định.
-- [ ] Seed hoặc script tạo admin, không có admin password hard-code.
+- [x] Seed hoặc script tạo admin, không có admin password hard-code.
 
 Acceptance criteria:
 

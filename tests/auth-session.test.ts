@@ -25,9 +25,11 @@ describe('auth session lifecycle', () => {
   };
 
   beforeEach(async () => {
+    await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany({ where: { email: credentials.email } });
     await request(app).post('/api/v1/auth/register').send(credentials).expect(201);
   });
+
 
   afterAll(async () => {
     await prisma.$disconnect();

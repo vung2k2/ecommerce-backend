@@ -97,20 +97,15 @@ export const authService = {
     const tokenHash = jwtService.hashToken(input.refreshToken);
 
     const outcome = await prisma.$transaction(async (tx): Promise<RefreshOutcome> => {
-      const tokenReference = await authRepository.findRefreshTokenByHash(tokenHash, tx);
-
-      if (!tokenReference) {
-        return { kind: 'invalid' };
-      }
-
-      await authRepository.lockUserSessions(tokenReference.userId, tx);
-      await authRepository.lockTokenFamily(tokenReference.familyId, tx);
+      await authRepository.lockUserSessions(payload.userId, tx);
+      await authRepository.lockTokenFamily(payload.familyId, tx);
 
       const storedToken = await authRepository.findRefreshTokenByHash(tokenHash, tx);
 
       if (!storedToken) {
         return { kind: 'invalid' };
       }
+
 
       if (payload.userId !== storedToken.userId || payload.familyId !== storedToken.familyId) {
         await authRepository.revokeTokenFamily(storedToken.familyId, tx);
