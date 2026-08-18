@@ -5,7 +5,7 @@ import { prisma } from '../../database/prisma.js';
 import { AppError } from '../../utils/app-error.js';
 import { jwtService, type RefreshTokenPayload } from '../../utils/jwt.js';
 import { authRepository } from './auth.repository.js';
-import type { LoginInput, LogoutInput, RefreshTokenInput, RegisterInput } from './auth.schema.js';
+import type { LoginDto, LogoutDto, RefreshTokenDto, RegisterDto } from './auth.schema.js';
 
 const BCRYPT_SALT_ROUNDS = 12;
 
@@ -21,7 +21,7 @@ function isUniqueConstraintError(error: unknown): error is { code: string } {
 }
 
 export const authService = {
-  async register(input: RegisterInput) {
+  async register(input: RegisterDto) {
     const existingUser = await authRepository.findUserByEmail(input.email);
 
     if (existingUser) {
@@ -31,7 +31,11 @@ export const authService = {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
 
     try {
-      return await authRepository.createCustomer({ ...input, passwordHash });
+      return await authRepository.createCustomer({
+        email: input.email,
+        passwordHash,
+        fullName: input.fullName,
+      });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'Email is already registered');
@@ -41,11 +45,15 @@ export const authService = {
     }
   },
 
-  async login(input: LoginInput) {
+  async login(input: LoginDto) {
     const user = await authRepository.findUserByEmail(input.email);
 
     if (!user) {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
+    }
+
+    if (!user.isActive) {
+      throw new AppError(403, 'INACTIVE_ACCOUNT', 'Your account is inactive');
     }
 
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
@@ -54,16 +62,11 @@ export const authService = {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     }
 
-    if (!user.isActive) {
-      throw new AppError(403, 'INACTIVE_ACCOUNT', 'Your account is inactive');
-    }
-
+    const familyId = randomUUID();
     const accessToken = jwtService.signAccessToken({
       userId: user.id,
       role: user.role,
     });
-
-    const familyId = randomUUID();
     const refreshToken = jwtService.signRefreshToken({
       userId: user.id,
       role: user.role,
@@ -85,7 +88,7 @@ export const authService = {
     return { accessToken, refreshToken };
   },
 
-  async refreshToken(input: RefreshTokenInput) {
+  async refreshToken(input: RefreshTokenDto) {
     let payload: RefreshTokenPayload;
 
     try {
@@ -105,7 +108,6 @@ export const authService = {
       if (!storedToken) {
         return { kind: 'invalid' };
       }
-
 
       if (payload.userId !== storedToken.userId || payload.familyId !== storedToken.familyId) {
         await authRepository.revokeTokenFamily(storedToken.familyId, tx);
@@ -187,7 +189,7 @@ export const authService = {
     }
   },
 
-  async logout(input: LogoutInput) {
+  async logout(input: LogoutDto) {
     const refreshTokenHash = jwtService.hashToken(input.refreshToken);
 
     await prisma.$transaction(async (tx) => {

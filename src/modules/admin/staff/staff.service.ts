@@ -16,10 +16,7 @@ export const staffService = {
     const limit = query.limit ?? 20;
 
     return {
-      items: staffList.map((staff) => ({
-        ...staff,
-        permissions: staff.permissions.map((p) => p.permission),
-      })),
+      items: staffList,
       pagination: {
         page,
         limit,

@@ -32,12 +32,10 @@ export const createStaffBodySchema = z.object({
     .default([]),
 });
 
-export const updateStaffStatusBodySchema = z
-  .object({
-    isActive: z.boolean(),
-    fullName: z.string().trim().min(1).max(100).optional(),
-  })
-  .strict();
+export const updateStaffStatusBodySchema = z.object({
+  isActive: z.boolean(),
+  fullName: z.string().trim().min(1).max(100).optional(),
+});
 
 export const updateStaffPermissionsBodySchema = z.object({
   permissions: z

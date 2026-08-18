@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import { sendSuccess } from '../../utils/response.js';
-import type { LoginInput, LogoutInput, RefreshTokenInput, RegisterInput } from './auth.schema.js';
+import type { LoginDto, LogoutDto, RefreshTokenDto, RegisterDto } from './auth.schema.js';
 import { authService } from './auth.service.js';
 
 export const authController = {
@@ -58,25 +58,21 @@ export const authController = {
    *                         role:
    *                           type: string
    *                           example: CUSTOMER
-   *                         createdAt:
-   *                           type: string
-   *                           example: "2026-08-13T10:00:00.000Z"
+   *       400:
+   *         description: Validation error
    *       409:
    *         description: Email is already registered
-   *       422:
-   *         description: Validation error (invalid input)
    */
   register: (async (req, res) => {
     const user = await authService.register(req.body);
-
     return sendSuccess(res, { user }, 201);
-  }) as RequestHandler<Record<string, never>, unknown, RegisterInput>,
+  }) as RequestHandler<Record<string, never>, unknown, RegisterDto>,
 
   /**
    * @openapi
    * /auth/login:
    *   post:
-   *     summary: Login to the application
+   *     summary: Authenticate customer and obtain tokens
    *     tags:
    *       - Auth
    *     requestBody:
@@ -109,26 +105,25 @@ export const authController = {
    *                   properties:
    *                     accessToken:
    *                       type: string
-   *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
    *                     refreshToken:
    *                       type: string
-   *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+   *       400:
+   *         description: Validation error
    *       401:
-   *         description: Invalid credentials or inactive account
-   *       422:
-   *         description: Validation error (invalid input)
+   *         description: Invalid credentials
+   *       403:
+   *         description: Account is inactive
    */
   login: (async (req, res) => {
     const result = await authService.login(req.body);
-
     return sendSuccess(res, result, 200);
-  }) as RequestHandler<Record<string, never>, unknown, LoginInput>,
+  }) as RequestHandler<Record<string, never>, unknown, LoginDto>,
 
   /**
    * @openapi
    * /auth/refresh:
    *   post:
-   *     summary: Refresh access token with token rotation & reuse detection
+   *     summary: Rotate refresh token and issue a new access token
    *     tags:
    *       - Auth
    *     requestBody:
@@ -144,14 +139,28 @@ export const authController = {
    *                 type: string
    *     responses:
    *       200:
-   *         description: Tokens refreshed successfully
+   *         description: Token rotated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     accessToken:
+   *                       type: string
+   *                     refreshToken:
+   *                       type: string
    *       401:
    *         description: Invalid/expired refresh token or reuse detected
+   *       403:
+   *         description: Account is inactive
    */
   refreshToken: (async (req, res) => {
     const result = await authService.refreshToken(req.body);
     return sendSuccess(res, result, 200);
-  }) as RequestHandler<Record<string, never>, unknown, RefreshTokenInput>,
+  }) as RequestHandler<Record<string, never>, unknown, RefreshTokenDto>,
 
   /**
    * @openapi
@@ -178,7 +187,7 @@ export const authController = {
   logout: (async (req, res) => {
     await authService.logout(req.body);
     return sendSuccess(res, { message: 'Logged out successfully' }, 200);
-  }) as RequestHandler<Record<string, never>, unknown, LogoutInput>,
+  }) as RequestHandler<Record<string, never>, unknown, LogoutDto>,
 
   /**
    * @openapi

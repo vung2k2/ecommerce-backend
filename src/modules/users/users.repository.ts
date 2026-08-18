@@ -1,8 +1,31 @@
 import { prisma } from '../../database/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import type { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.schema.js';
 
 type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
+
+export interface UpdateUserData {
+  fullName?: string | undefined;
+}
+
+export interface CreateAddressData {
+  recipientName: string;
+  phone: string;
+  province: string;
+  district: string;
+  ward: string;
+  streetAddress: string;
+  isDefault?: boolean | undefined;
+}
+
+export interface UpdateAddressData {
+  recipientName?: string | undefined;
+  phone?: string | undefined;
+  province?: string | undefined;
+  district?: string | undefined;
+  ward?: string | undefined;
+  streetAddress?: string | undefined;
+  isDefault?: boolean | undefined;
+}
 
 export const usersRepository = {
   findUserById(userId: string, tx: PrismaClientOrTx = prisma) {
@@ -20,7 +43,7 @@ export const usersRepository = {
     });
   },
 
-  updateUser(userId: string, data: UpdateProfileDto, tx: PrismaClientOrTx = prisma) {
+  updateUser(userId: string, data: UpdateUserData, tx: PrismaClientOrTx = prisma) {
     return tx.user.update({
       where: { id: userId },
       data: {
@@ -63,7 +86,7 @@ export const usersRepository = {
     `;
   },
 
-  async createAddress(userId: string, data: CreateAddressDto) {
+  async createAddress(userId: string, data: CreateAddressData) {
     return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
         SELECT pg_advisory_xact_lock(hashtextextended(${`user-address:${userId}`}, 0))::text AS locked
@@ -81,7 +104,12 @@ export const usersRepository = {
 
       return tx.address.create({
         data: {
-          ...data,
+          recipientName: data.recipientName,
+          phone: data.phone,
+          province: data.province,
+          district: data.district,
+          ward: data.ward,
+          streetAddress: data.streetAddress,
           userId,
           isDefault,
         },
@@ -89,7 +117,7 @@ export const usersRepository = {
     });
   },
 
-  async updateAddress(id: string, userId: string, data: UpdateAddressDto) {
+  async updateAddress(id: string, userId: string, data: UpdateAddressData) {
     const updateData: Prisma.AddressUpdateInput = {
       ...(data.recipientName !== undefined ? { recipientName: data.recipientName } : {}),
       ...(data.phone !== undefined ? { phone: data.phone } : {}),

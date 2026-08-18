@@ -1,8 +1,20 @@
 import { prisma } from '../../database/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import type { RegisterInput } from './auth.schema.js';
 
 type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
+
+export interface CreateCustomerData {
+  email: string;
+  passwordHash: string;
+  fullName: string;
+}
+
+export interface CreateRefreshTokenData {
+  userId: string;
+  familyId: string;
+  tokenHash: string;
+  expiresAt: Date;
+}
 
 export const authRepository = {
   lockUserSessions(userId: string, tx: Prisma.TransactionClient) {
@@ -25,12 +37,12 @@ export const authRepository = {
     return tx.user.findUnique({ where: { id } });
   },
 
-  createCustomer(input: RegisterInput & { passwordHash: string }, tx: PrismaClientOrTx = prisma) {
+  createCustomer(data: CreateCustomerData, tx: PrismaClientOrTx = prisma) {
     return tx.user.create({
       data: {
-        email: input.email,
-        passwordHash: input.passwordHash,
-        fullName: input.fullName,
+        email: data.email,
+        passwordHash: data.passwordHash,
+        fullName: data.fullName,
       },
       select: {
         id: true,
@@ -42,15 +54,7 @@ export const authRepository = {
     });
   },
 
-  createRefreshToken(
-    data: {
-      userId: string;
-      familyId: string;
-      tokenHash: string;
-      expiresAt: Date;
-    },
-    tx: PrismaClientOrTx = prisma,
-  ) {
+  createRefreshToken(data: CreateRefreshTokenData, tx: PrismaClientOrTx = prisma) {
     return tx.refreshToken.create({
       data,
     });

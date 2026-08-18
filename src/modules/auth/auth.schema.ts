@@ -11,7 +11,7 @@ export const registerSchema = z.object({
   fullName: z.string().trim().min(2).max(100),
 });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterDto = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email().max(255)),
@@ -23,16 +23,16 @@ export const loginSchema = z.object({
     }),
 });
 
-export type LoginInput = z.infer<typeof loginSchema>;
+export type LoginDto = z.infer<typeof loginSchema>;
 
 export const logoutSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
-export type LogoutInput = z.infer<typeof logoutSchema>;
+export type LogoutDto = z.infer<typeof logoutSchema>;
 
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
-export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type RefreshTokenDto = z.infer<typeof refreshTokenSchema>;

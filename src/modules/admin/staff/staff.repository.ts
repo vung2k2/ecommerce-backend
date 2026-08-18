@@ -3,9 +3,54 @@ import { prisma } from '../../../database/prisma.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { AppError } from '../../../utils/app-error.js';
 import { auditRepository } from '../../audit/audit.repository.js';
-import type { GetStaffQueryDto } from './staff.schema.js';
 
 type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
+
+export interface FindStaffParams {
+  page?: number | undefined;
+  limit?: number | undefined;
+  search?: string | undefined;
+  isActive?: boolean | undefined;
+}
+
+export interface CreateStaffData {
+  email: string;
+  passwordHash: string;
+  fullName: string;
+  permissions: Permission[];
+  actorId: string;
+}
+
+export interface UpdateStaffStatusData {
+  isActive: boolean;
+  fullName?: string | undefined;
+}
+
+const staffSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  role: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+  permissions: {
+    select: {
+      permission: true,
+    },
+  },
+} as const;
+
+type StaffWithPermissionsRecord = Prisma.UserGetPayload<{
+  select: typeof staffSelect;
+}>;
+
+function toStaffResult(user: StaffWithPermissionsRecord) {
+  return {
+    ...user,
+    permissions: user.permissions.map((p) => p.permission),
+  };
+}
 
 export const staffRepository = {
   lockAdminProtection(tx: Prisma.TransactionClient) {
@@ -20,67 +65,45 @@ export const staffRepository = {
     `;
   },
 
-  findStaffList(query: GetStaffQueryDto, tx: PrismaClientOrTx = prisma) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+  async findStaffList(params: FindStaffParams, tx: PrismaClientOrTx = prisma) {
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
     const skip = (page - 1) * limit;
 
     const where: Prisma.UserWhereInput = {
       role: ROLES.STAFF,
-      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
-      ...(query.search
+      ...(params.isActive !== undefined ? { isActive: params.isActive } : {}),
+      ...(params.search
         ? {
             OR: [
-              { email: { contains: query.search, mode: 'insensitive' } },
-              { fullName: { contains: query.search, mode: 'insensitive' } },
+              { email: { contains: params.search, mode: 'insensitive' } },
+              { fullName: { contains: params.search, mode: 'insensitive' } },
             ],
           }
         : {}),
     };
 
-    return Promise.all([
+    const [staffList, total] = await Promise.all([
       tx.user.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          permissions: {
-            select: {
-              permission: true,
-            },
-          },
-        },
+        select: staffSelect,
       }),
       tx.user.count({ where }),
     ]);
+
+    return [staffList.map(toStaffResult), total] as const;
   },
 
-  findUserById(id: string, tx: PrismaClientOrTx = prisma) {
-    return tx.user.findUnique({
+  async findUserById(id: string, tx: PrismaClientOrTx = prisma) {
+    const user = await tx.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        permissions: {
-          select: {
-            permission: true,
-          },
-        },
-      },
+      select: staffSelect,
     });
+
+    return user ? toStaffResult(user) : null;
   },
 
   findUserByEmail(email: string, tx: PrismaClientOrTx = prisma) {
@@ -89,13 +112,7 @@ export const staffRepository = {
     });
   },
 
-  async createStaffWithPermissions(data: {
-    email: string;
-    passwordHash: string;
-    fullName: string;
-    permissions: Permission[];
-    actorId: string;
-  }) {
+  async createStaffWithPermissions(data: CreateStaffData) {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -131,37 +148,18 @@ export const staffRepository = {
         tx,
       );
 
-      const createdStaff = await tx.user.findUnique({
+      const createdStaff = await tx.user.findUniqueOrThrow({
         where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          permissions: {
-            select: {
-              permission: true,
-            },
-          },
-        },
+        select: staffSelect,
       });
 
-      return {
-        ...createdStaff!,
-        permissions: createdStaff!.permissions.map((p) => p.permission),
-      };
+      return toStaffResult(createdStaff);
     });
   },
 
   async updateStaffStatus(
     id: string,
-    data: {
-      isActive: boolean;
-      fullName?: string | undefined;
-    },
+    data: UpdateStaffStatusData,
     actorId: string,
   ) {
     return prisma.$transaction(async (tx) => {
@@ -201,25 +199,11 @@ export const staffRepository = {
         }
       }
 
-      const user = await tx.user.update({
+      await tx.user.update({
         where: { id },
         data: {
           isActive: data.isActive,
           ...(data.fullName !== undefined ? { fullName: data.fullName } : {}),
-        },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          permissions: {
-            select: {
-              permission: true,
-            },
-          },
         },
       });
 
@@ -245,10 +229,12 @@ export const staffRepository = {
         tx,
       );
 
-      return {
-        ...user,
-        permissions: user.permissions.map((p) => p.permission),
-      };
+      const updatedStaff = await tx.user.findUniqueOrThrow({
+        where: { id },
+        select: staffSelect,
+      });
+
+      return toStaffResult(updatedStaff);
     });
   },
 
@@ -305,28 +291,12 @@ export const staffRepository = {
         tx,
       );
 
-      const user = await tx.user.findUnique({
+      const user = await tx.user.findUniqueOrThrow({
         where: { id },
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          permissions: {
-            select: {
-              permission: true,
-            },
-          },
-        },
+        select: staffSelect,
       });
 
-      return {
-        ...user!,
-        permissions: user!.permissions.map((p) => p.permission),
-      };
+      return toStaffResult(user);
     });
   },
 };

@@ -80,16 +80,15 @@ Khi một quyết định mới thay đổi phạm vi hoặc kiến trúc, đề
 ## Quy ước kỹ thuật bắt buộc
 
 - Giữ kiến trúc modular monolith; không tách microservice nếu chưa cập nhật plan.
-- Controller không chứa business logic hoặc Prisma transaction phức tạp; không dùng `try/catch` bọc ngoài controller handlers (tận dụng Express 5 tự động chuyển error sang centralized `errorHandler`).
-- Controller handler bắt buộc có JSDoc block `@openapi` đồng bộ mô tả endpoint, tags, security, requestBody/params và responses.
-- Khai báo kiểu `RequestHandler` generic đồng nhất cho controller handlers:
-  - Có Params & Body: `as RequestHandler<ParamsDto, unknown, BodyDto>`
-  - Chỉ có Body: `as RequestHandler<Record<string, never>, unknown, BodyDto>`
-  - Chỉ có Params: `as RequestHandler<ParamsDto>`
-  - Có Query: `as RequestHandler` kết hợp parse/cast an toàn trong handler.
-- Response trả về chuẩn hóa qua helper `sendSuccess` hoặc `sendPaginated`.
-- Trước khi tạo file controller, service, repository hoặc schema cho bất kỳ module mới nào, bắt buộc đọc (inspect) các module đã hoàn thiện (`users`, `auth`) làm Golden Pattern để đảm bảo tính nhất quán tuyệt đối trong toàn bộ repository.
-- TypeScript phải chạy strict; tránh `any`, non-null assertion và type cast thiếu kiểm chứng.
+- **Ranh giới phân tầng chuẩn của Module (Dependency Flow)**:
+  `Route -> Controller -> Service -> Repository -> Database (Prisma)`
+  - **Tầng Route (`*.routes.ts`)**: Chỉ khai báo HTTP routing, middleware xác thực, phân quyền và validation (`validateBody`, `validateParams`, `validateQuery`).
+  - **Tầng Controller (`*.controller.ts`)**: Mỏng, chỉ chuyển đổi HTTP input/output, không chứa business logic hay query Prisma; không dùng `try/catch` bọc ngoài (tận dụng Express 5 tự chuyển error sang centralized `errorHandler`); bắt buộc có JSDoc block `@openapi` đồng bộ; khai báo `RequestHandler` generic chặt chẽ (`<ParamsDto, unknown, BodyDto>`); trả về qua `sendSuccess` hoặc `sendPaginated`.
+  - **Tầng Schema (`*.schema.ts`)**: Validate request boundary bằng Zod; dùng cơ chế strip mặc định (không gọi `.strict()` đơn lẻ gây bất nhất behavior); thống nhất đặt tên types là `*Dto` (ví dụ `RegisterDto`, `CreateStaffDto`).
+  - **Tầng Service (`*.service.ts`)**: Xử lý toàn bộ business logic, transaction orchestration và gọi audit log; nhận DTO từ Controller và truyền data types thuần sang Repository.
+  - **Tầng Repository (`*.persistence / *.repository.ts`)**: Độc lập hoàn toàn khỏi HTTP boundary, **tuyệt đối không import DTO từ `*.schema.ts`**; định nghĩa data input types riêng ngay tại repository; chỉ thực thi câu lệnh Prisma và query locks; hỗ trợ tham số `tx?: PrismaClientOrTx` để chạy trong transaction dùng chung.
+- Trước khi tạo file controller, service, repository hoặc schema cho bất kỳ module mới nào, bắt buộc đọc (inspect) các module đã hoàn thiện (`users`, `auth`, `admin/staff`) làm Golden Pattern để đảm bảo tính nhất quán tuyệt đối trong toàn bộ repository.
+- TypeScript phải chạy strict; tránh `any`, non-null assertion (`!`) và type cast thiếu kiểm chứng.
 - Validate path, query, body, header cần thiết và environment variables tại boundary.
 - Không tin price, discount, total, ownership, role hoặc trạng thái do client gửi.
 - Tiền lưu bằng số nguyên VND; không dùng floating point cho phép tính tiền.
