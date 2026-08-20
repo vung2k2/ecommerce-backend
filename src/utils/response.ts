@@ -5,7 +5,10 @@ import { buildPaginatedResponse } from './pagination.js';
  * Trả về response thành công chuẩn hóa dạng { data: ... }
  */
 export function sendSuccess<T>(res: Response, data: T, statusCode = 200) {
-  return res.status(statusCode).json({ data });
+  return res.status(statusCode).json({
+    data,
+    requestId: res.req?.id,
+  });
 }
 
 /**
@@ -18,5 +21,9 @@ export function sendPaginated<T>(
   query: { page: number; pageSize: number },
   statusCode = 200,
 ) {
-  return res.status(statusCode).json(buildPaginatedResponse(data, total, query));
+  const paginatedData = buildPaginatedResponse(data, total, query);
+  return res.status(statusCode).json({
+    ...paginatedData,
+    requestId: res.req?.id,
+  });
 }

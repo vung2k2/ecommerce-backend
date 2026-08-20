@@ -119,7 +119,7 @@ route -> middleware -> controller -> service/use case -> repository -> database
 - [ ] Cấu hình PostgreSQL, Prisma, migration và seed. PostgreSQL/Prisma đã setup; migration và seed sẽ làm khi có model đầu tiên.
 - [ ] Cấu hình Redis và xử lý lỗi kết nối.
 - [ ] Tạo Dockerfile nhiều stage và Docker Compose cho local. Docker Compose PostgreSQL đã có; Dockerfile để tới giai đoạn đóng gói ứng dụng.
-- [ ] Chuẩn hóa success response, error response và pagination metadata.
+- [x] Chuẩn hóa success response, error response và pagination metadata.
 - [ ] Tạo centralized error handler và mapping domain error sang HTTP status. Handler nền tảng đã có; mapping domain error làm khi bắt đầu module nghiệp vụ.
 - [x] Thêm request ID, Pino logger và request logging.
 - [x] Thêm Helmet, CORS allowlist, body limit và rate limiting.
