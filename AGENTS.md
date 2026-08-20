@@ -83,7 +83,9 @@ Khi một quyết định mới thay đổi phạm vi hoặc kiến trúc, đề
 - **Ranh giới phân tầng chuẩn của Module (Dependency Flow)**:
   `Route -> Controller -> Service -> Repository -> Database (Prisma)`
   - **Tầng Route (`*.routes.ts`)**: Chỉ khai báo HTTP routing, middleware xác thực, phân quyền và validation (`validateBody`, `validateParams`, `validateQuery`).
-  - **Tầng Controller (`*.controller.ts`)**: Mỏng, chỉ chuyển đổi HTTP input/output, không chứa business logic hay query Prisma; không dùng `try/catch` bọc ngoài (tận dụng Express 5 tự chuyển error sang centralized `errorHandler`); bắt buộc có JSDoc block `@openapi` đồng bộ; khai báo `RequestHandler` generic chặt chẽ (`<ParamsDto, unknown, BodyDto>`); trả về qua `sendSuccess` hoặc `sendPaginated`.
+  - **Tầng Controller (`*.controller.ts`)**: Mỏng, chỉ chuyển đổi HTTP input/output, không chứa business logic hay query Prisma; không dùng `try/catch` bọc ngoài (tận dụng Express 5 tự chuyển error sang centralized `errorHandler`); khai báo `RequestHandler` generic chặt chẽ (`<ParamsDto, unknown, BodyDto>`); trả về qua `sendSuccess` hoặc `sendPaginated`.
+  - **OpenAPI**: Dùng Zod schema và Route Registry làm nguồn sự thật duy nhất; không duy trì JSDoc `@openapi` trùng lặp trong Controller.
+  - Các lỗi HTTP/middleware chung được mô tả tập trung trong OpenAPI guideline; mỗi endpoint chỉ khai báo HTTP status và `error.code` của lỗi nghiệp vụ đặc trưng, không lặp lại message/schema lỗi chung trong từng route.
   - **Tầng Schema (`*.schema.ts`)**: Validate request boundary bằng Zod; dùng cơ chế strip mặc định (không gọi `.strict()` đơn lẻ gây bất nhất behavior); thống nhất đặt tên types là `*Dto` (ví dụ `RegisterDto`, `CreateStaffDto`).
   - **Tầng Service (`*.service.ts`)**: Xử lý toàn bộ business logic, transaction orchestration và gọi audit log; nhận DTO từ Controller và truyền data types thuần sang Repository.
   - **Tầng Repository (`*.persistence / *.repository.ts`)**: Độc lập hoàn toàn khỏi HTTP boundary, **tuyệt đối không import DTO từ `*.schema.ts`**; định nghĩa data input types riêng ngay tại repository; chỉ thực thi câu lệnh Prisma và query locks; hỗ trợ tham số `tx?: PrismaClientOrTx` để chạy trong transaction dùng chung.
@@ -160,5 +162,3 @@ Khi một quyết định mới thay đổi phạm vi hoặc kiến trúc, đề
   - `build`: Thay đổi hệ thống build hoặc dependency (Docker, npm, tsconfig...).
   - `ci`: Thay đổi cấu hình CI/CD (GitHub Actions, workflows...).
   - `chore`: Các công việc bảo trì khác (setup, config, update .gitignore...).
-
-

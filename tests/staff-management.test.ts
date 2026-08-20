@@ -25,15 +25,14 @@ const staffResponseSchema = z.object({
 });
 
 const staffListResponseSchema = z.object({
-  data: z.object({
-    items: z.array(staffItemSchema),
-    pagination: z.object({
-      page: z.number(),
-      limit: z.number(),
-      total: z.number(),
-      totalPages: z.number(),
-    }),
+  data: z.array(staffItemSchema),
+  meta: z.object({
+    page: z.number(),
+    pageSize: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
   }),
+  requestId: z.string().min(1),
 });
 
 const errorResponseSchema = z.object({
@@ -72,7 +71,11 @@ describe('Staff Management & Authorization PBAC', () => {
       where: {
         OR: [
           { role: ROLES.STAFF },
-          { email: { in: [adminCredentials.email, customerCredentials.email, 'admin2@example.com'] } },
+          {
+            email: {
+              in: [adminCredentials.email, customerCredentials.email, 'admin2@example.com'],
+            },
+          },
         ],
       },
     });
@@ -156,7 +159,11 @@ describe('Staff Management & Authorization PBAC', () => {
           email: 'staff_dedup@example.com',
           password: 'StaffPassword123!',
           fullName: 'Staff Dedup',
-          permissions: [PERMISSIONS.CATALOG_READ, PERMISSIONS.CATALOG_READ, PERMISSIONS.CATALOG_WRITE],
+          permissions: [
+            PERMISSIONS.CATALOG_READ,
+            PERMISSIONS.CATALOG_READ,
+            PERMISSIONS.CATALOG_WRITE,
+          ],
         });
 
       expect(response.status).toBe(201);
@@ -223,15 +230,15 @@ describe('Staff Management & Authorization PBAC', () => {
         });
 
       const response = await request(app)
-        .get('/api/v1/admin/staff?page=1&limit=10')
+        .get('/api/v1/admin/staff?page=1&pageSize=10')
         .set('Authorization', `Bearer ${adminAccessToken}`);
 
       expect(response.status).toBe(200);
       const body = staffListResponseSchema.parse(response.body);
-      expect(body.data.items).toHaveLength(1);
-      expect(body.data.items[0]?.email).toBe('staff1@example.com');
-      expect(body.data.items[0]?.permissions).toEqual([PERMISSIONS.INVENTORY_READ]);
-      expect(body.data.pagination.total).toBe(1);
+      expect(body.data).toHaveLength(1);
+      expect(body.data[0]?.email).toBe('staff1@example.com');
+      expect(body.data[0]?.permissions).toEqual([PERMISSIONS.INVENTORY_READ]);
+      expect(body.meta).toEqual({ page: 1, pageSize: 10, total: 1, totalPages: 1 });
     });
   });
 

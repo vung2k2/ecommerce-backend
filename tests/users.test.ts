@@ -218,7 +218,8 @@ describe('Users & Address Management', () => {
         .patch(`/api/v1/users/me/addresses/${addr2.id}/default`)
         .set('Authorization', `Bearer ${tokenA}`);
       expect(setDefaultRes.status).toBe(200);
-      const defaultUpdated = addressResponseSchema.parse(setDefaultRes.body as unknown).data.address;
+      const defaultUpdated = addressResponseSchema.parse(setDefaultRes.body as unknown).data
+        .address;
       expect(defaultUpdated.isDefault).toBe(true);
 
       // 4. Lấy danh sách địa chỉ -> addr2 là default, addr1 không còn là default
@@ -246,7 +247,8 @@ describe('Users & Address Management', () => {
       const checkListRes = await request(app)
         .get('/api/v1/users/me/addresses')
         .set('Authorization', `Bearer ${tokenA}`);
-      const updatedList = addressListResponseSchema.parse(checkListRes.body as unknown).data.addresses;
+      const updatedList = addressListResponseSchema.parse(checkListRes.body as unknown).data
+        .addresses;
       expect(updatedList.find((a) => a.id === addr1.id)?.isDefault).toBe(true);
       expect(updatedList.find((a) => a.id === addr2.id)?.isDefault).toBe(false);
     });
@@ -266,21 +268,27 @@ describe('Users & Address Management', () => {
         .set('Authorization', `Bearer ${tokenB}`)
         .send({ recipientName: 'Hacker Name' });
       expect(updateRes.status).toBe(404);
-      expect(errorResponseSchema.parse(updateRes.body as unknown).error.code).toBe('ADDRESS_NOT_FOUND');
+      expect(errorResponseSchema.parse(updateRes.body as unknown).error.code).toBe(
+        'ADDRESS_NOT_FOUND',
+      );
 
       // User B cố gắng xóa địa chỉ của User A -> 404 NOT_FOUND
       const deleteRes = await request(app)
         .delete(`/api/v1/users/me/addresses/${addressA.id}`)
         .set('Authorization', `Bearer ${tokenB}`);
       expect(deleteRes.status).toBe(404);
-      expect(errorResponseSchema.parse(deleteRes.body as unknown).error.code).toBe('ADDRESS_NOT_FOUND');
+      expect(errorResponseSchema.parse(deleteRes.body as unknown).error.code).toBe(
+        'ADDRESS_NOT_FOUND',
+      );
 
       // User B cố gắng set default địa chỉ của User A -> 404 NOT_FOUND
       const defaultRes = await request(app)
         .patch(`/api/v1/users/me/addresses/${addressA.id}/default`)
         .set('Authorization', `Bearer ${tokenB}`);
       expect(defaultRes.status).toBe(404);
-      expect(errorResponseSchema.parse(defaultRes.body as unknown).error.code).toBe('ADDRESS_NOT_FOUND');
+      expect(errorResponseSchema.parse(defaultRes.body as unknown).error.code).toBe(
+        'ADDRESS_NOT_FOUND',
+      );
 
       // User A xóa thành công địa chỉ của mình
       const validDelete = await request(app)

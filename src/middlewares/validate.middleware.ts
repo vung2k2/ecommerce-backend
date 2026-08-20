@@ -10,12 +10,12 @@ export function validateBody(schema: ZodType): RequestHandler {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Request body is invalid',
-          requestId: req.id,
           details: result.error.issues.map((issue) => ({
             path: issue.path.join('.'),
             message: issue.message,
           })),
         },
+        requestId: req.id,
       });
       return;
     }
@@ -34,12 +34,12 @@ export function validateParams(schema: ZodType): RequestHandler {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Request params are invalid',
-          requestId: req.id,
           details: result.error.issues.map((issue) => ({
             path: issue.path.join('.'),
             message: issue.message,
           })),
         },
+        requestId: req.id,
       });
       return;
     }
@@ -58,12 +58,12 @@ export function validateQuery(schema: ZodType): RequestHandler {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Request query is invalid',
-          requestId: req.id,
           details: result.error.issues.map((issue) => ({
             path: issue.path.join('.'),
             message: issue.message,
           })),
         },
+        requestId: req.id,
       });
       return;
     }

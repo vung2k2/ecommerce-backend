@@ -331,8 +331,8 @@ Acceptance criteria:
 
 ### 5.9. OpenAPI và tài liệu vận hành
 
-- [ ] Setup sẵn OpenAPI document và Swagger UI tại `/docs` từ giai đoạn nền tảng.
-- [ ] Sau khi các API đã hoàn thành và ổn định, mô tả toàn bộ endpoint, schema, authentication và error codes.
+- [x] Setup sẵn OpenAPI document và Swagger UI tại `/docs` sử dụng `@asteasolutions/zod-to-openapi` làm tiêu chuẩn định nghĩa OpenAPI (Single Source of Truth).
+- [ ] Khi xây dựng xong API nào, mô tả ngay endpoint, schema, authentication và error codes của API đó thông qua Registry và Zod Schema.
 - [ ] Mô tả pagination, filter, sort và các enum trạng thái.
 - [ ] Thêm ví dụ request/response cho checkout và VNPay.
 - [ ] Viết README hướng dẫn local setup, migration, seed, test và Docker.
@@ -342,7 +342,7 @@ Acceptance criteria:
 Acceptance criteria:
 
 - OpenAPI document tại `/docs` khởi tạo và validate thành công, mô tả đầy đủ toàn bộ endpoint thực tế.
-- Mỗi endpoint mô tả rõ authentication, path/query/body schema, response thành công và các error codes (`400`, `401`, `403`, `404`, `409`, `422`, `429`).
+- OpenAPI mô tả tập trung các lỗi chung từ HTTP/middleware (`401`, `403`, `404`, `422`, `429`, `500`); mỗi endpoint chỉ khai báo thêm HTTP status và `error.code` của lỗi nghiệp vụ đặc trưng.
 - README hướng dẫn đầy đủ, một developer mới có thể chạy migration, seed, test và khởi chạy local stack mà không gặp lỗi.
 - Quy trình rollback và khôi phục database backup đã được chạy thử nghiệm thực tế.
 - File `.env.example` cung cấp đủ toàn bộ biến môi trường cần thiết mà không chứa secret thật.
@@ -494,7 +494,7 @@ Một chức năng chỉ được đánh dấu hoàn thành khi:
 - Input được validate, lỗi trả đúng contract.
 - Unit/integration/E2E test phù hợp đã pass.
 - Race condition và retry/idempotency đã được xem xét.
-- OpenAPI đã được cập nhật ở giai đoạn hoàn thiện tài liệu cuối dự án; trước đó Zod schema phải được giữ có thể tái sử dụng.
+- OpenAPI đã được định nghĩa thông qua Zod schema và Route Registry tương ứng.
 - Không log hoặc commit secret.
 - Lint, typecheck, test và build đều pass.
 - Code đã được review và các finding quan trọng đã xử lý.

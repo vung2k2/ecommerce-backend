@@ -1,8 +1,11 @@
 import bcrypt from 'bcrypt';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { createApp } from '../src/app.js';
 import { prisma } from '../src/database/prisma.js';
+
+const responseEnvelopeSchema = z.object({ requestId: z.string().min(1) });
 
 describe('POST /api/v1/auth/register', () => {
   const app = createApp();
@@ -16,11 +19,14 @@ describe('POST /api/v1/auth/register', () => {
   });
 
   it('creates a customer and never exposes the password hash', async () => {
-    const response = await request(app).post('/api/v1/auth/register').send({
-      email: '  Alice@Example.com ',
-      password: 'password123',
-      fullName: '  Alice Nguyen  ',
-    });
+    const response = await request(app)
+      .post('/api/v1/auth/register')
+      .set('x-request-id', 'req-register-test')
+      .send({
+        email: '  Alice@Example.com ',
+        password: 'password123',
+        fullName: '  Alice Nguyen  ',
+      });
 
     expect(response.status).toBe(201);
     expect(response.body as unknown).toMatchObject({
@@ -31,7 +37,9 @@ describe('POST /api/v1/auth/register', () => {
           role: 'CUSTOMER',
         },
       },
+      requestId: 'req-register-test',
     });
+    expect(response.headers['x-request-id']).toBe('req-register-test');
     expect(JSON.stringify(response.body)).not.toContain('passwordHash');
 
     const user = await prisma.user.findUniqueOrThrow({
@@ -55,6 +63,7 @@ describe('POST /api/v1/auth/register', () => {
     expect(response.body as unknown).toMatchObject({
       error: { code: 'EMAIL_ALREADY_EXISTS' },
     });
+    expect(responseEnvelopeSchema.parse(response.body as unknown).requestId).toBeTypeOf('string');
     await expect(prisma.user.count({ where: { email: 'alice@example.com' } })).resolves.toBe(1);
   });
 
@@ -69,6 +78,7 @@ describe('POST /api/v1/auth/register', () => {
     expect(response.body as unknown).toMatchObject({
       error: { code: 'VALIDATION_ERROR' },
     });
+    expect(responseEnvelopeSchema.parse(response.body as unknown).requestId).toBeTypeOf('string');
     await expect(prisma.user.count({ where: { email: 'alice@example.com' } })).resolves.toBe(0);
   });
 });

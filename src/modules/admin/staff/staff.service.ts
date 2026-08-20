@@ -11,19 +11,7 @@ import type {
 
 export const staffService = {
   async getStaffList(query: GetStaffQueryDto) {
-    const [staffList, total] = await staffRepository.findStaffList(query);
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-
-    return {
-      items: staffList,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return staffRepository.findStaffList(query);
   },
 
   async createStaff(actorId: string, dto: CreateStaffDto) {
@@ -48,11 +36,7 @@ export const staffService = {
     return staffRepository.updateStaffStatus(staffId, dto, actorId);
   },
 
-  async updateStaffPermissions(
-    actorId: string,
-    staffId: string,
-    dto: UpdateStaffPermissionsDto,
-  ) {
+  async updateStaffPermissions(actorId: string, staffId: string, dto: UpdateStaffPermissionsDto) {
     return staffRepository.replaceStaffPermissions(staffId, dto.permissions, actorId);
   },
 };

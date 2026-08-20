@@ -10,7 +10,7 @@ import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { prisma } from './database/prisma.js';
-import { openApiDocument } from './docs/openapi.js';
+import { getOpenApiDocument } from './docs/openapi.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 import { apiRouter } from './routes/api.routes.js';
 
@@ -61,6 +61,15 @@ export function createApp() {
       limit: 200,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
+      handler: (req, res) => {
+        res.status(429).json({
+          error: {
+            code: 'TOO_MANY_REQUESTS',
+            message: 'Too many requests, please try again later.',
+          },
+          requestId: req.id,
+        });
+      },
     }),
   );
 
@@ -78,8 +87,8 @@ export function createApp() {
   });
 
   // Swagger UI và OpenAPI JSON.
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
-  app.get('/docs.json', (_request, response) => response.json(openApiDocument));
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(getOpenApiDocument()));
+  app.get('/docs.json', (_request, response) => response.json(getOpenApiDocument()));
 
   // Mount toàn bộ API nghiệp vụ.
   app.use('/api/v1', apiRouter);

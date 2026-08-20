@@ -8,4 +8,3 @@ export const apiRouter = Router();
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/admin/staff', staffRouter);
-

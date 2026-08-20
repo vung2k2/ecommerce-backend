@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { createHash, randomUUID } from 'node:crypto';
-import { z } from 'zod';
+import { z } from './zod.js';
 import { env } from '../config/env.js';
 import { AUTH_CONSTANTS, ROLES, type Role } from '../constants/index.js';
 import { AppError } from './app-error.js';

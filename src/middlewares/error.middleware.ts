@@ -8,8 +8,8 @@ export const notFoundHandler: RequestHandler = (req, res) => {
     error: {
       code: 'ROUTE_NOT_FOUND',
       message: `Route ${req.method} ${req.originalUrl} was not found`,
-      requestId: req.id,
     },
+    requestId: req.id,
   });
 };
 
@@ -21,8 +21,8 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next
       error: {
         code: error.code,
         message: error.message,
-        requestId: req.id,
       },
+      requestId: req.id,
     });
     return;
   }
@@ -33,10 +33,10 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next
     error: {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred',
-      requestId: req.id,
       ...(env.NODE_ENV === 'development' && error instanceof Error
         ? { details: error.message }
         : {}),
     },
+    requestId: req.id,
   });
 };

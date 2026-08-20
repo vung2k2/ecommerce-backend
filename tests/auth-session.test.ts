@@ -30,7 +30,6 @@ describe('auth session lifecycle', () => {
     await request(app).post('/api/v1/auth/register').send(credentials).expect(201);
   });
 
-
   afterAll(async () => {
     await prisma.$disconnect();
   });

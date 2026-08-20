@@ -8,7 +8,7 @@ type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
 
 export interface FindStaffParams {
   page?: number | undefined;
-  limit?: number | undefined;
+  pageSize?: number | undefined;
   search?: string | undefined;
   isActive?: boolean | undefined;
 }
@@ -67,8 +67,8 @@ export const staffRepository = {
 
   async findStaffList(params: FindStaffParams, tx: PrismaClientOrTx = prisma) {
     const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
-    const skip = (page - 1) * limit;
+    const pageSize = params.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
 
     const where: Prisma.UserWhereInput = {
       role: ROLES.STAFF,
@@ -87,7 +87,7 @@ export const staffRepository = {
       tx.user.findMany({
         where,
         skip,
-        take: limit,
+        take: pageSize,
         orderBy: { createdAt: 'desc' },
         select: staffSelect,
       }),
@@ -157,11 +157,7 @@ export const staffRepository = {
     });
   },
 
-  async updateStaffStatus(
-    id: string,
-    data: UpdateStaffStatusData,
-    actorId: string,
-  ) {
+  async updateStaffStatus(id: string, data: UpdateStaffStatusData, actorId: string) {
     return prisma.$transaction(async (tx) => {
       // Lock serialize toàn bộ thao tác bảo vệ Admin và lock phiên làm việc của user đích
       await staffRepository.lockAdminProtection(tx);
