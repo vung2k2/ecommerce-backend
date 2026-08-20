@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
-import { AUTH_CONSTANTS } from '../../constants/index.js';
+import { AUTH_CONSTANTS, ERROR_CODES } from '../../constants/index.js';
 import { prisma } from '../../database/prisma.js';
 import { AppError } from '../../utils/app-error.js';
 import { jwtService, type RefreshTokenPayload } from '../../utils/jwt.js';
@@ -25,7 +25,7 @@ export const authService = {
     const existingUser = await authRepository.findUserByEmail(input.email);
 
     if (existingUser) {
-      throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'Email is already registered');
+      throw new AppError(409, ERROR_CODES.EMAIL_ALREADY_EXISTS);
     }
 
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
@@ -38,7 +38,7 @@ export const authService = {
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'Email is already registered');
+        throw new AppError(409, ERROR_CODES.EMAIL_ALREADY_EXISTS);
       }
 
       throw error;
@@ -49,17 +49,17 @@ export const authService = {
     const user = await authRepository.findUserByEmail(input.email);
 
     if (!user) {
-      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
+      throw new AppError(401, ERROR_CODES.INVALID_CREDENTIALS);
     }
 
     if (!user.isActive) {
-      throw new AppError(403, 'INACTIVE_ACCOUNT', 'Your account is inactive');
+      throw new AppError(403, ERROR_CODES.INACTIVE_ACCOUNT);
     }
 
     const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
 
     if (!isPasswordValid) {
-      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
+      throw new AppError(401, ERROR_CODES.INVALID_CREDENTIALS);
     }
 
     const familyId = randomUUID();
@@ -94,7 +94,7 @@ export const authService = {
     try {
       payload = jwtService.verifyRefreshToken(input.refreshToken);
     } catch {
-      throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
+      throw new AppError(401, ERROR_CODES.INVALID_REFRESH_TOKEN);
     }
 
     const tokenHash = jwtService.hashToken(input.refreshToken);
@@ -175,17 +175,13 @@ export const authService = {
       case 'success':
         return { accessToken: outcome.accessToken, refreshToken: outcome.refreshToken };
       case 'inactive':
-        throw new AppError(403, 'INACTIVE_ACCOUNT', 'Your account is inactive');
+        throw new AppError(403, ERROR_CODES.INACTIVE_ACCOUNT);
       case 'reuse':
-        throw new AppError(
-          401,
-          'TOKEN_REUSE_DETECTED',
-          'Security alert: Token reuse detected. Please login again.',
-        );
+        throw new AppError(401, ERROR_CODES.TOKEN_REUSE_DETECTED);
       case 'expired':
-        throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh token has expired');
+        throw new AppError(401, ERROR_CODES.INVALID_REFRESH_TOKEN);
       case 'invalid':
-        throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
+        throw new AppError(401, ERROR_CODES.INVALID_REFRESH_TOKEN);
     }
   },
 

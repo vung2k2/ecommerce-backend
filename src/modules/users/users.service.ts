@@ -1,3 +1,4 @@
+import { ERROR_CODES } from '../../constants/index.js';
 import { AppError } from '../../utils/app-error.js';
 import { usersRepository } from './users.repository.js';
 import type { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.schema.js';
@@ -7,7 +8,7 @@ export const usersService = {
     const user = await usersRepository.findUserById(userId);
 
     if (!user) {
-      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+      throw new AppError(404, ERROR_CODES.USER_NOT_FOUND);
     }
 
     return user;
@@ -17,7 +18,7 @@ export const usersService = {
     const user = await usersRepository.findUserById(userId);
 
     if (!user) {
-      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+      throw new AppError(404, ERROR_CODES.USER_NOT_FOUND);
     }
 
     return usersRepository.updateUser(userId, data);
@@ -35,7 +36,7 @@ export const usersService = {
     const existing = await usersRepository.findAddressByIdAndUserId(id, userId);
 
     if (!existing) {
-      throw new AppError(404, 'ADDRESS_NOT_FOUND', 'Address not found');
+      throw new AppError(404, ERROR_CODES.ADDRESS_NOT_FOUND);
     }
 
     return usersRepository.updateAddress(id, userId, data);
@@ -45,7 +46,7 @@ export const usersService = {
     const existing = await usersRepository.findAddressByIdAndUserId(id, userId);
 
     if (!existing) {
-      throw new AppError(404, 'ADDRESS_NOT_FOUND', 'Address not found');
+      throw new AppError(404, ERROR_CODES.ADDRESS_NOT_FOUND);
     }
 
     await usersRepository.deleteAddress(id, userId);
@@ -55,7 +56,7 @@ export const usersService = {
     const existing = await usersRepository.findAddressByIdAndUserId(id, userId);
 
     if (!existing) {
-      throw new AppError(404, 'ADDRESS_NOT_FOUND', 'Address not found');
+      throw new AppError(404, ERROR_CODES.ADDRESS_NOT_FOUND);
     }
 
     return usersRepository.setDefaultAddress(id, userId);

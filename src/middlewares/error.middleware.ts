@@ -1,13 +1,18 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
+import { ERROR_CODES } from '../constants/index.js';
+import { translateError } from '../i18n/index.js';
 import { AppError } from '../utils/app-error.js';
 
 export const notFoundHandler: RequestHandler = (req, res) => {
   res.status(404).json({
     error: {
-      code: 'ROUTE_NOT_FOUND',
-      message: `Route ${req.method} ${req.originalUrl} was not found`,
+      code: ERROR_CODES.ROUTE_NOT_FOUND,
+      message: translateError(req.locale, ERROR_CODES.ROUTE_NOT_FOUND, {
+        method: req.method,
+        path: req.originalUrl,
+      }),
     },
     requestId: req.id,
   });
@@ -20,7 +25,7 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next
     res.status(error.statusCode).json({
       error: {
         code: error.code,
-        message: error.message,
+        message: translateError(req.locale, error.code),
       },
       requestId: req.id,
     });
@@ -31,8 +36,8 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, next
 
   res.status(500).json({
     error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred',
+      code: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      message: translateError(req.locale, ERROR_CODES.INTERNAL_SERVER_ERROR),
       ...(env.NODE_ENV === 'development' && error instanceof Error
         ? { details: error.message }
         : {}),

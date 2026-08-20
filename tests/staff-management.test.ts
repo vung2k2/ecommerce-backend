@@ -361,8 +361,8 @@ describe('Staff Management & Authorization PBAC', () => {
 
       expect(response.status).toBe(403);
       const body = errorResponseSchema.parse(response.body);
-      expect(body.error.code).toBe('FORBIDDEN');
-      expect(body.error.message).toBe('Account is disabled');
+      expect(body.error.code).toBe('INACTIVE_ACCOUNT');
+      expect(body.error.message).toBe('This account has been deactivated');
     });
   });
 

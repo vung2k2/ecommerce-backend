@@ -17,7 +17,7 @@ const permissionValues = [
 export const staffIdParamSchema = z.object({
   id: z
     .string()
-    .uuid('Invalid staff ID')
+    .uuid('validation.staffIdUuid')
     .openapi({ example: '7f4cddc1-d6fd-4bda-a66a-65d09f244bf9' }),
 });
 registry.register('StaffIdParamDto', staffIdParamSchema);
@@ -31,15 +31,15 @@ export const createStaffBodySchema = z.object({
     .openapi({ example: 'staff1@example.com' }),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
+    .min(8, 'validation.passwordMin8')
     .refine((password) => Buffer.byteLength(password, 'utf8') <= 72, {
-      message: 'Password must not exceed 72 bytes',
+      message: 'validation.passwordMax72Bytes',
     })
     .openapi({ example: 'strongpass123' }),
   fullName: z
     .string()
     .trim()
-    .min(1, 'Full name is required')
+    .min(1, 'validation.fullNameRequired')
     .max(100)
     .openapi({ example: 'Staff Name' }),
   permissions: z

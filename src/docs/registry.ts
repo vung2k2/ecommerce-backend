@@ -1,4 +1,5 @@
 import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
+import type { ErrorCode } from '../constants/index.js';
 import { z } from '../utils/zod.js';
 
 export const registry = new OpenAPIRegistry();
@@ -41,7 +42,7 @@ export const ErrorResponseSchema = z.object({
 });
 registry.register('ErrorResponse', ErrorResponseSchema);
 
-export function errorResponse(errorCodes: string | string[]) {
+export function errorResponse(errorCodes: ErrorCode | ErrorCode[]) {
   const codes = Array.isArray(errorCodes) ? errorCodes : [errorCodes];
 
   return {

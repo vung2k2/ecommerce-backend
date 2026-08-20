@@ -105,6 +105,7 @@ route -> middleware -> controller -> service/use case -> repository -> database
 - Input từ path, query, body và environment đều phải được validate.
 - API không tin price, discount, total, role hoặc trạng thái do client tự gửi.
 - Error response có mã lỗi ổn định, message và request ID; không trả stack trace ở production.
+- Response hỗ trợ `Accept-Language: en|vi`, mặc định `en`; HTTP status, `error.code` và JSON contract không thay đổi theo locale, chỉ message dành cho người dùng được dịch tại HTTP boundary.
 - Mọi thay đổi schema đều có Prisma migration và dữ liệu seed phù hợp.
 - Không log password, token, cookie, database URL, AWS secret hoặc VNPay hash secret.
 
@@ -343,6 +344,7 @@ Acceptance criteria:
 
 - OpenAPI document tại `/docs` khởi tạo và validate thành công, mô tả đầy đủ toàn bộ endpoint thực tế.
 - OpenAPI mô tả tập trung các lỗi chung từ HTTP/middleware (`401`, `403`, `404`, `422`, `429`, `500`); mỗi endpoint chỉ khai báo thêm HTTP status và `error.code` của lỗi nghiệp vụ đặc trưng.
+- OpenAPI mô tả `Accept-Language`, locale mặc định, fallback và nguyên tắc giữ ổn định `error.code` giữa tiếng Anh và tiếng Việt.
 - README hướng dẫn đầy đủ, một developer mới có thể chạy migration, seed, test và khởi chạy local stack mà không gặp lỗi.
 - Quy trình rollback và khôi phục database backup đã được chạy thử nghiệm thực tế.
 - File `.env.example` cung cấp đủ toàn bộ biến môi trường cần thiết mà không chứa secret thật.

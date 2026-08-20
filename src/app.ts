@@ -9,9 +9,12 @@ import { pinoHttp } from 'pino-http';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
+import { ERROR_CODES } from './constants/index.js';
 import { prisma } from './database/prisma.js';
 import { getOpenApiDocument } from './docs/openapi.js';
+import { translateError } from './i18n/index.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
+import { resolveRequestLocale } from './middlewares/locale.middleware.js';
 import { apiRouter } from './routes/api.routes.js';
 
 export function createApp() {
@@ -42,6 +45,8 @@ export function createApp() {
     }),
   );
 
+  app.use(resolveRequestLocale);
+
   // Thiết lập các HTTP security header phổ biến.
   app.use(helmet());
 
@@ -64,8 +69,8 @@ export function createApp() {
       handler: (req, res) => {
         res.status(429).json({
           error: {
-            code: 'TOO_MANY_REQUESTS',
-            message: 'Too many requests, please try again later.',
+            code: ERROR_CODES.TOO_MANY_REQUESTS,
+            message: translateError(req.locale, ERROR_CODES.TOO_MANY_REQUESTS),
           },
           requestId: req.id,
         });

@@ -13,9 +13,14 @@ Tài liệu này mô tả các quy ước giao tiếp giữa Frontend (FE) và B
 
 ---
 
-# 1. Response
+# 1. Language
 
-## 1.1. Response Thành Công
+- Client chọn ngôn ngữ bằng header \`Accept-Language\` với hai giá trị hỗ trợ là \`en\` và \`vi\`.
+- Khi thiếu header hoặc locale không được hỗ trợ, API mặc định dùng \`en\`.
+
+# 2. Response
+
+## 2.1. Response Thành Công
 Tất cả các API trả về thành công đều được bọc trong một object có chứa \`requestId\` (dùng để tra cứu log) và dữ liệu chính nằm trong trường \`data\`.
 \`\`\`json
 {
@@ -24,7 +29,7 @@ Tất cả các API trả về thành công đều được bọc trong một ob
 }
 \`\`\`
 
-## 1.2. Response Phân Trang
+## 2.2. Response Phân Trang
 Đối với các API trả về danh sách (GET list), dữ liệu sẽ kèm theo metadata phân trang \`meta\`:
 \`\`\`json
 {
@@ -39,7 +44,7 @@ Tất cả các API trả về thành công đều được bọc trong một ob
 }
 \`\`\`
 
-## 1.3. Response Lỗi
+## 2.3. Response Lỗi
 Mọi lỗi HTTP (4xx, 5xx) đều tuân theo format này. Đặc biệt lỗi \`422\` (Validation) sẽ có thêm mảng \`details\` báo lỗi chi tiết ở từng field.
 \`\`\`json
 {
@@ -57,7 +62,7 @@ Mọi lỗi HTTP (4xx, 5xx) đều tuân theo format này. Đặc biệt lỗi \
 }
 \`\`\`
 
-## 1.4. Các lỗi chung
+## 2.4. Các lỗi chung
 
 Các lỗi dưới đây áp dụng thống nhất ở tầng HTTP/middleware và không lặp lại trong từng endpoint.
 Client nên xử lý theo \`error.code\`; \`message\` chỉ dùng để hiển thị hoặc hỗ trợ debug.

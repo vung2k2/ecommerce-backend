@@ -1,12 +1,12 @@
 import type { RequestHandler } from 'express';
-import { ROLES, type Permission, type Role } from '../constants/index.js';
+import { ERROR_CODES, ROLES, type Permission, type Role } from '../constants/index.js';
 import { prisma } from '../database/prisma.js';
 import { AppError } from '../utils/app-error.js';
 
 export function requireRole(...allowedRoles: Role[]): RequestHandler {
   return async (req, _res, next) => {
     if (!req.user) {
-      throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
+      throw new AppError(401, ERROR_CODES.UNAUTHORIZED);
     }
 
     const user = await prisma.user.findUnique({
@@ -15,11 +15,11 @@ export function requireRole(...allowedRoles: Role[]): RequestHandler {
     });
 
     if (!user || !user.isActive) {
-      throw new AppError(403, 'FORBIDDEN', 'Account is disabled');
+      throw new AppError(403, ERROR_CODES.INACTIVE_ACCOUNT);
     }
 
     if (!allowedRoles.includes(user.role)) {
-      throw new AppError(403, 'FORBIDDEN', 'Access denied');
+      throw new AppError(403, ERROR_CODES.FORBIDDEN);
     }
 
     next();
@@ -29,7 +29,7 @@ export function requireRole(...allowedRoles: Role[]): RequestHandler {
 export function requirePermission(requiredPermission: Permission): RequestHandler {
   return async (req, _res, next) => {
     if (!req.user) {
-      throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
+      throw new AppError(401, ERROR_CODES.UNAUTHORIZED);
     }
 
     const user = await prisma.user.findUnique({
@@ -45,7 +45,7 @@ export function requirePermission(requiredPermission: Permission): RequestHandle
     });
 
     if (!user || !user.isActive) {
-      throw new AppError(403, 'FORBIDDEN', 'Account is disabled');
+      throw new AppError(403, ERROR_CODES.INACTIVE_ACCOUNT);
     }
 
     // Role ADMIN toàn quyền, bypass mọi permission check
@@ -55,18 +55,18 @@ export function requirePermission(requiredPermission: Permission): RequestHandle
 
     // Role CUSTOMER không được gọi API quản trị
     if (user.role === ROLES.CUSTOMER) {
-      throw new AppError(403, 'FORBIDDEN', 'Access denied');
+      throw new AppError(403, ERROR_CODES.FORBIDDEN);
     }
 
     // Role STAFF: kiểm tra có permission yêu cầu hay không
     if (user.role === ROLES.STAFF) {
       if (user.permissions.length === 0) {
-        throw new AppError(403, 'FORBIDDEN', 'Insufficient permissions');
+        throw new AppError(403, ERROR_CODES.FORBIDDEN);
       }
 
       return next();
     }
 
-    throw new AppError(403, 'FORBIDDEN', 'Access denied');
+    throw new AppError(403, ERROR_CODES.FORBIDDEN);
   };
 }

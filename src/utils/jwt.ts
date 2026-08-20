@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from './zod.js';
 import { env } from '../config/env.js';
-import { AUTH_CONSTANTS, ROLES, type Role } from '../constants/index.js';
+import { AUTH_CONSTANTS, ERROR_CODES, ROLES, type Role } from '../constants/index.js';
 import { AppError } from './app-error.js';
 
 const JWT_ALGORITHM = 'HS256';
@@ -83,7 +83,7 @@ export const jwtService = {
     const result = accessTokenPayloadSchema.safeParse(decoded);
 
     if (!result.success) {
-      throw new AppError(401, 'UNAUTHORIZED', 'Invalid token type');
+      throw new AppError(401, ERROR_CODES.UNAUTHORIZED);
     }
 
     return result.data;
@@ -98,7 +98,7 @@ export const jwtService = {
     const result = refreshTokenPayloadSchema.safeParse(decoded);
 
     if (!result.success) {
-      throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid token type');
+      throw new AppError(401, ERROR_CODES.INVALID_REFRESH_TOKEN);
     }
 
     return result.data;

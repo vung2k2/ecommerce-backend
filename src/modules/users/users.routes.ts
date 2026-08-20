@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { ERROR_CODES } from '../../constants/index.js';
 import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { validateBody, validateParams } from '../../middlewares/validate.middleware.js';
 import { usersController } from './users.controller.js';
@@ -34,7 +35,7 @@ registry.registerPath({
       description: 'Profile retrieved successfully',
       content: { 'application/json': { schema: createSuccessResponseSchema(userResponseSchema) } },
     },
-    404: errorResponse('USER_NOT_FOUND'),
+    404: errorResponse(ERROR_CODES.USER_NOT_FOUND),
   },
 });
 usersRouter.get('/me', usersController.getProfile);
@@ -53,7 +54,7 @@ registry.registerPath({
       description: 'Profile updated successfully',
       content: { 'application/json': { schema: createSuccessResponseSchema(userResponseSchema) } },
     },
-    404: errorResponse('USER_NOT_FOUND'),
+    404: errorResponse(ERROR_CODES.USER_NOT_FOUND),
   },
 });
 usersRouter.patch('/me', validateBody(updateProfileSchema), usersController.updateProfile);
@@ -112,7 +113,7 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(addressResponseSchema) },
       },
     },
-    404: errorResponse('ADDRESS_NOT_FOUND'),
+    404: errorResponse(ERROR_CODES.ADDRESS_NOT_FOUND),
   },
 });
 usersRouter.patch(
@@ -138,7 +139,7 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(deleteAddressResponseSchema) },
       },
     },
-    404: errorResponse('ADDRESS_NOT_FOUND'),
+    404: errorResponse(ERROR_CODES.ADDRESS_NOT_FOUND),
   },
 });
 usersRouter.delete(
@@ -163,7 +164,7 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(addressResponseSchema) },
       },
     },
-    404: errorResponse('ADDRESS_NOT_FOUND'),
+    404: errorResponse(ERROR_CODES.ADDRESS_NOT_FOUND),
   },
 });
 usersRouter.patch(

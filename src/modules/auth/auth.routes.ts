@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { env } from '../../config/env.js';
+import { ERROR_CODES } from '../../constants/index.js';
+import { translateError } from '../../i18n/index.js';
 import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { validateBody } from '../../middlewares/validate.middleware.js';
 import { authController } from './auth.controller.js';
@@ -21,7 +23,7 @@ import {
 
 export const authRouter = Router();
 
-function createAuthRateLimiter(actionName: string) {
+function createAuthRateLimiter() {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: env.NODE_ENV === 'test' ? 1000 : 15,
@@ -30,8 +32,8 @@ function createAuthRateLimiter(actionName: string) {
     handler: (req, res) => {
       res.status(429).json({
         error: {
-          code: 'TOO_MANY_REQUESTS',
-          message: `Too many ${actionName} requests, please try again later.`,
+          code: ERROR_CODES.TOO_MANY_REQUESTS,
+          message: translateError(req.locale, ERROR_CODES.TOO_MANY_REQUESTS),
         },
         requestId: req.id,
       });
@@ -39,9 +41,9 @@ function createAuthRateLimiter(actionName: string) {
   });
 }
 
-export const registerRateLimiter = createAuthRateLimiter('register');
-export const loginRateLimiter = createAuthRateLimiter('login');
-export const refreshRateLimiter = createAuthRateLimiter('refresh');
+export const registerRateLimiter = createAuthRateLimiter();
+export const loginRateLimiter = createAuthRateLimiter();
+export const refreshRateLimiter = createAuthRateLimiter();
 
 registry.registerPath({
   method: 'post',
@@ -60,7 +62,7 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(registerResponseDataSchema) },
       },
     },
-    409: errorResponse('EMAIL_ALREADY_EXISTS'),
+    409: errorResponse(ERROR_CODES.EMAIL_ALREADY_EXISTS),
   },
 });
 authRouter.post(
@@ -87,8 +89,8 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(tokenResponseDataSchema) },
       },
     },
-    401: errorResponse('INVALID_CREDENTIALS'),
-    403: errorResponse('INACTIVE_ACCOUNT'),
+    401: errorResponse(ERROR_CODES.INVALID_CREDENTIALS),
+    403: errorResponse(ERROR_CODES.INACTIVE_ACCOUNT),
   },
 });
 authRouter.post('/login', loginRateLimiter, validateBody(loginSchema), authController.login);
@@ -110,8 +112,11 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(tokenResponseDataSchema) },
       },
     },
-    401: errorResponse(['INVALID_REFRESH_TOKEN', 'TOKEN_REUSE_DETECTED']),
-    403: errorResponse('INACTIVE_ACCOUNT'),
+    401: errorResponse([
+      ERROR_CODES.INVALID_REFRESH_TOKEN,
+      ERROR_CODES.TOKEN_REUSE_DETECTED,
+    ]),
+    403: errorResponse(ERROR_CODES.INACTIVE_ACCOUNT),
   },
 });
 authRouter.post(

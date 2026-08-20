@@ -1,4 +1,4 @@
-import { AUDIT_ACTIONS, ROLES, type Permission } from '../../../constants/index.js';
+import { AUDIT_ACTIONS, ERROR_CODES, ROLES, type Permission } from '../../../constants/index.js';
 import { prisma } from '../../../database/prisma.js';
 import type { Prisma } from '../../../generated/prisma/client.js';
 import { AppError } from '../../../utils/app-error.js';
@@ -166,15 +166,11 @@ export const staffRepository = {
       const targetUser = await tx.user.findUnique({ where: { id } });
 
       if (!targetUser) {
-        throw new AppError(404, 'USER_NOT_FOUND', 'Staff account not found');
+        throw new AppError(404, ERROR_CODES.STAFF_NOT_FOUND);
       }
 
       if (targetUser.role === ROLES.CUSTOMER) {
-        throw new AppError(
-          400,
-          'INVALID_TARGET_ROLE',
-          'Cannot manage customer accounts through staff endpoints',
-        );
+        throw new AppError(400, ERROR_CODES.INVALID_TARGET_ROLE);
       }
 
       // Invariant: Không cho phép vô hiệu hóa Admin cuối cùng
@@ -187,11 +183,7 @@ export const staffRepository = {
         });
 
         if (activeAdmins <= 1) {
-          throw new AppError(
-            400,
-            'CANNOT_DEACTIVATE_LAST_ADMIN',
-            'Cannot deactivate the last active admin account',
-          );
+          throw new AppError(400, ERROR_CODES.CANNOT_DEACTIVATE_LAST_ADMIN);
         }
       }
 
@@ -242,15 +234,11 @@ export const staffRepository = {
       const targetUser = await tx.user.findUnique({ where: { id } });
 
       if (!targetUser) {
-        throw new AppError(404, 'USER_NOT_FOUND', 'Staff account not found');
+        throw new AppError(404, ERROR_CODES.STAFF_NOT_FOUND);
       }
 
       if (targetUser.role !== ROLES.STAFF) {
-        throw new AppError(
-          400,
-          'INVALID_TARGET_ROLE',
-          'Permissions can only be directly assigned to staff accounts',
-        );
+        throw new AppError(400, ERROR_CODES.INVALID_TARGET_ROLE);
       }
 
       // Xóa permissions cũ

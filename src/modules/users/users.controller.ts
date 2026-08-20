@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express';
+import { translate } from '../../i18n/index.js';
 import { sendSuccess } from '../../utils/response.js';
 import type { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.schema.js';
 import { usersService } from './users.service.js';
@@ -31,7 +32,7 @@ export const usersController = {
 
   deleteAddress: (async (req, res) => {
     await usersService.deleteAddress(req.params.id, req.user.userId);
-    return sendSuccess(res, { message: 'Address deleted successfully' }, 200);
+    return sendSuccess(res, { message: translate(req.locale, 'success.addressDeleted') }, 200);
   }) as RequestHandler<{ id: string }>,
 
   setDefaultAddress: (async (req, res) => {

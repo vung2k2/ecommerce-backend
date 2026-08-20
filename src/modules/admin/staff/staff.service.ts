@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { AUTH_CONSTANTS } from '../../../constants/index.js';
+import { AUTH_CONSTANTS, ERROR_CODES } from '../../../constants/index.js';
 import { AppError } from '../../../utils/app-error.js';
 import { staffRepository } from './staff.repository.js';
 import type {
@@ -18,7 +18,7 @@ export const staffService = {
     const existingUser = await staffRepository.findUserByEmail(dto.email);
 
     if (existingUser) {
-      throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'Email is already in use');
+      throw new AppError(409, ERROR_CODES.EMAIL_ALREADY_EXISTS);
     }
 
     const passwordHash = await bcrypt.hash(dto.password, AUTH_CONSTANTS.BCRYPT_SALT_ROUNDS);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ROLES } from '../../../constants/index.js';
+import { ERROR_CODES, ROLES } from '../../../constants/index.js';
 import { requireAuth } from '../../../middlewares/auth.middleware.js';
 import { requireRole } from '../../../middlewares/permission.middleware.js';
 import {
@@ -65,7 +65,7 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(staffResponseDataSchema) },
       },
     },
-    409: errorResponse('EMAIL_ALREADY_EXISTS'),
+    409: errorResponse(ERROR_CODES.EMAIL_ALREADY_EXISTS),
   },
 });
 staffRouter.post('/', validateBody(createStaffBodySchema), staffController.createStaff);
@@ -87,8 +87,11 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(staffResponseDataSchema) },
       },
     },
-    400: errorResponse(['INVALID_TARGET_ROLE', 'CANNOT_DEACTIVATE_LAST_ADMIN']),
-    404: errorResponse('USER_NOT_FOUND'),
+    400: errorResponse([
+      ERROR_CODES.INVALID_TARGET_ROLE,
+      ERROR_CODES.CANNOT_DEACTIVATE_LAST_ADMIN,
+    ]),
+    404: errorResponse(ERROR_CODES.STAFF_NOT_FOUND),
   },
 });
 staffRouter.patch(
@@ -115,8 +118,8 @@ registry.registerPath({
         'application/json': { schema: createSuccessResponseSchema(staffResponseDataSchema) },
       },
     },
-    400: errorResponse('INVALID_TARGET_ROLE'),
-    404: errorResponse('USER_NOT_FOUND'),
+    400: errorResponse(ERROR_CODES.INVALID_TARGET_ROLE),
+    404: errorResponse(ERROR_CODES.STAFF_NOT_FOUND),
   },
 });
 staffRouter.put(

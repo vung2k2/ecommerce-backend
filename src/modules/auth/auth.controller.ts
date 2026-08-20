@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express';
+import { translate } from '../../i18n/index.js';
 import { sendSuccess } from '../../utils/response.js';
 import type { LoginDto, LogoutDto, RefreshTokenDto, RegisterDto } from './auth.schema.js';
 import { authService } from './auth.service.js';
@@ -21,11 +22,11 @@ export const authController = {
 
   logout: (async (req, res) => {
     await authService.logout(req.body);
-    return sendSuccess(res, { message: 'Logged out successfully' }, 200);
+    return sendSuccess(res, { message: translate(req.locale, 'success.loggedOut') }, 200);
   }) as RequestHandler<Record<string, never>, unknown, LogoutDto>,
 
   logoutAll: (async (req, res) => {
     await authService.logoutAll(req.user.userId);
-    return sendSuccess(res, { message: 'Logged out from all devices successfully' }, 200);
+    return sendSuccess(res, { message: translate(req.locale, 'success.loggedOutAll') }, 200);
   }) as RequestHandler,
 };

@@ -7,13 +7,13 @@ export const updateProfileSchema = z
     fullName: z
       .string()
       .trim()
-      .min(2, 'Họ và tên phải có ít nhất 2 ký tự')
-      .max(100, 'Họ và tên tối đa 100 ký tự')
+      .min(2, 'validation.fullNameMin2')
+      .max(100, 'validation.fullNameMax100')
       .optional()
       .openapi({ example: 'Bob Smith' }),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'Cần cung cấp ít nhất một trường để cập nhật',
+    message: 'validation.updateAtLeastOneField',
   });
 
 registry.register('UpdateProfileDto', updateProfileSchema);
@@ -21,7 +21,7 @@ registry.register('UpdateProfileDto', updateProfileSchema);
 export const addressIdParamSchema = z.object({
   id: z
     .string()
-    .uuid('ID địa chỉ không đúng định dạng UUID')
+    .uuid('validation.addressIdUuid')
     .openapi({ example: '95eb6f7e-cced-45ba-8826-cdb01e284dc7' }),
 });
 
@@ -31,36 +31,36 @@ export const createAddressSchema = z.object({
   recipientName: z
     .string()
     .trim()
-    .min(2, 'Tên người nhận phải có ít nhất 2 ký tự')
-    .max(100, 'Tên người nhận tối đa 100 ký tự')
+    .min(2, 'validation.recipientNameMin2')
+    .max(100, 'validation.recipientNameMax100')
     .openapi({ example: 'Bob Smith' }),
   phone: z
     .string()
     .trim()
-    .regex(PHONE_REGEX, 'Số điện thoại không hợp lệ')
+    .regex(PHONE_REGEX, 'validation.phoneInvalid')
     .openapi({ example: '0901234567' }),
   province: z
     .string()
     .trim()
-    .min(1, 'Tỉnh/Thành phố là bắt buộc')
+    .min(1, 'validation.provinceRequired')
     .max(100)
     .openapi({ example: 'Hà Nội' }),
   district: z
     .string()
     .trim()
-    .min(1, 'Quận/Huyện là bắt buộc')
+    .min(1, 'validation.districtRequired')
     .max(100)
     .openapi({ example: 'Quận Ba Đình' }),
   ward: z
     .string()
     .trim()
-    .min(1, 'Phường/Xã là bắt buộc')
+    .min(1, 'validation.wardRequired')
     .max(100)
     .openapi({ example: 'Phường Điện Biên' }),
   streetAddress: z
     .string()
     .trim()
-    .min(1, 'Địa chỉ chi tiết là bắt buộc')
+    .min(1, 'validation.streetAddressRequired')
     .max(255)
     .openapi({ example: '28A Điện Biên Phủ' }),
   isDefault: z.boolean().optional().default(false).openapi({ example: true }),
@@ -74,7 +74,7 @@ export const updateAddressSchema = z
     phone: z
       .string()
       .trim()
-      .regex(PHONE_REGEX, 'Số điện thoại không hợp lệ')
+      .regex(PHONE_REGEX, 'validation.phoneInvalid')
       .optional()
       .openapi({ example: '0901234567' }),
     province: z.string().trim().min(1).max(100).optional().openapi({ example: 'Hà Nội' }),
@@ -90,7 +90,7 @@ export const updateAddressSchema = z
     isDefault: z.boolean().optional().openapi({ example: true }),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'Cần cung cấp ít nhất một trường để cập nhật',
+    message: 'validation.updateAtLeastOneField',
   });
 
 registry.register('UpdateAddressDto', updateAddressSchema);

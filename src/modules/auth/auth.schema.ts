@@ -10,9 +10,9 @@ export const registerSchema = z.object({
     .openapi({ example: 'alice@example.com' }),
   password: z
     .string()
-    .min(8, 'Password must contain at least 8 characters')
+    .min(8, 'validation.passwordMin8')
     .refine((password) => Buffer.byteLength(password, 'utf8') <= 72, {
-      message: 'Password must not exceed 72 bytes',
+      message: 'validation.passwordMax72Bytes',
     })
     .openapi({ example: 'password123' }),
   fullName: z.string().trim().min(2).max(100).openapi({ example: 'Alice Nguyen' }),
@@ -40,9 +40,9 @@ export const loginSchema = z.object({
     .openapi({ example: 'alice@example.com' }),
   password: z
     .string()
-    .min(8, 'Password must contain at least 8 characters')
+    .min(8, 'validation.passwordMin8')
     .refine((password) => Buffer.byteLength(password, 'utf8') <= 72, {
-      message: 'Password must not exceed 72 bytes',
+      message: 'validation.passwordMax72Bytes',
     })
     .openapi({ example: 'password123' }),
 });
@@ -62,7 +62,7 @@ export const logoutResponseDataSchema = z.object({
 export const logoutSchema = z.object({
   refreshToken: z
     .string()
-    .min(1, 'Refresh token is required')
+    .min(1, 'validation.refreshTokenRequired')
     .openapi({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }),
 });
 
@@ -72,7 +72,7 @@ export type LogoutDto = z.infer<typeof logoutSchema>;
 export const refreshTokenSchema = z.object({
   refreshToken: z
     .string()
-    .min(1, 'Refresh token is required')
+    .min(1, 'validation.refreshTokenRequired')
     .openapi({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }),
 });
 

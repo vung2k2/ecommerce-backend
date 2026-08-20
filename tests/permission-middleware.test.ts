@@ -122,7 +122,7 @@ describe('requirePermission Middleware', () => {
     expect(body.message).toBe('Catalog created');
   });
 
-  it('blocks STAFF without required permission with 403 Insufficient permissions', async () => {
+  it('blocks STAFF without the required permission with 403 Forbidden', async () => {
     const staff = await prisma.user.create({
       data: {
         email: 'staff_perm@test.com',
@@ -144,7 +144,7 @@ describe('requirePermission Middleware', () => {
     expect(response.status).toBe(403);
     const body = errorResponseSchema.parse(response.body);
     expect(body.error.code).toBe('FORBIDDEN');
-    expect(body.error.message).toBe('Insufficient permissions');
+    expect(body.error.message).toBe('You do not have permission to perform this action');
   });
 
   it('blocks deactivated STAFF even if they have the permission', async () => {
@@ -168,7 +168,7 @@ describe('requirePermission Middleware', () => {
 
     expect(response.status).toBe(403);
     const body = errorResponseSchema.parse(response.body);
-    expect(body.error.code).toBe('FORBIDDEN');
-    expect(body.error.message).toBe('Account is disabled');
+    expect(body.error.code).toBe('INACTIVE_ACCOUNT');
+    expect(body.error.message).toBe('This account has been deactivated');
   });
 });
