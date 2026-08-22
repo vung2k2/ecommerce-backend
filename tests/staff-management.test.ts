@@ -67,18 +67,7 @@ describe('Staff Management & Authorization PBAC', () => {
     await prisma.auditLog.deleteMany();
     await prisma.userPermission.deleteMany();
     await prisma.refreshToken.deleteMany();
-    await prisma.user.deleteMany({
-      where: {
-        OR: [
-          { role: ROLES.STAFF },
-          {
-            email: {
-              in: [adminCredentials.email, customerCredentials.email, 'admin2@example.com'],
-            },
-          },
-        ],
-      },
-    });
+    await prisma.user.deleteMany();
 
     // Tạo Admin user
     const adminPasswordHash = await bcrypt.hash(adminCredentials.password, 12);

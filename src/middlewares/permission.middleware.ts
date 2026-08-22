@@ -26,7 +26,7 @@ export function requireRole(...allowedRoles: Role[]): RequestHandler {
   };
 }
 
-export function requirePermission(requiredPermission: Permission): RequestHandler {
+export function requirePermission(...requiredPermissions: Permission[]): RequestHandler {
   return async (req, _res, next) => {
     if (!req.user) {
       throw new AppError(401, ERROR_CODES.UNAUTHORIZED);
@@ -38,7 +38,7 @@ export function requirePermission(requiredPermission: Permission): RequestHandle
         isActive: true,
         role: true,
         permissions: {
-          where: { permission: requiredPermission },
+          where: { permission: { in: requiredPermissions } },
           select: { id: true },
         },
       },
@@ -58,7 +58,7 @@ export function requirePermission(requiredPermission: Permission): RequestHandle
       throw new AppError(403, ERROR_CODES.FORBIDDEN);
     }
 
-    // Role STAFF: kiểm tra có permission yêu cầu hay không
+    // Role STAFF: kiểm tra có ít nhất 1 permission yêu cầu hay không
     if (user.role === ROLES.STAFF) {
       if (user.permissions.length === 0) {
         throw new AppError(403, ERROR_CODES.FORBIDDEN);

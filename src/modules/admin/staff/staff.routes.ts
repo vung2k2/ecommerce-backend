@@ -33,7 +33,7 @@ registry.registerPath({
   method: 'get',
   path: '/admin/staff',
   summary: 'Get paginated list of staff members',
-  tags: ['Admin: Staff'],
+  tags: ['Staff'],
   security: [{ bearerAuth: [] }],
   request: {
     query: getStaffQuerySchema,
@@ -53,7 +53,7 @@ registry.registerPath({
   method: 'post',
   path: '/admin/staff',
   summary: 'Create a new staff member',
-  tags: ['Admin: Staff'],
+  tags: ['Staff'],
   security: [{ bearerAuth: [] }],
   request: {
     body: { content: { 'application/json': { schema: createStaffBodySchema } } },
@@ -74,7 +74,7 @@ registry.registerPath({
   method: 'patch',
   path: '/admin/staff/{id}',
   summary: 'Update staff member status and info',
-  tags: ['Admin: Staff'],
+  tags: ['Staff'],
   security: [{ bearerAuth: [] }],
   request: {
     params: staffIdParamSchema,
@@ -105,7 +105,7 @@ registry.registerPath({
   method: 'put',
   path: '/admin/staff/{id}/permissions',
   summary: 'Update staff permissions',
-  tags: ['Admin: Staff'],
+  tags: ['Staff'],
   security: [{ bearerAuth: [] }],
   request: {
     params: staffIdParamSchema,

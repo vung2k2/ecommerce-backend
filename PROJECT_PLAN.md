@@ -185,15 +185,15 @@ Acceptance criteria:
 
 ### 5.3. Catalog và media
 
-- [ ] Thiết kế category dạng cây, brand, product, specification và image.
-- [ ] Thiết kế product variant với SKU duy nhất, options, price và compare-at price.
-- [ ] Product có trạng thái `DRAFT`, `ACTIVE`, `INACTIVE`.
-- [ ] Product và variant đã được dùng trong order không bị hard-delete.
-- [ ] Admin CRUD category, brand, product, variant và specification.
-- [ ] Public API chỉ trả sản phẩm đang active.
-- [ ] Danh sách sản phẩm hỗ trợ pagination, keyword, category, brand, khoảng giá, specification và sort.
-- [ ] Chi tiết sản phẩm được truy cập bằng slug duy nhất.
-- [ ] Thêm database index dựa trên query thực tế.
+- [x] Thiết kế category dạng cây, brand, product, specification và image.
+- [x] Thiết kế product variant với SKU duy nhất, options, price và compare-at price.
+- [x] Product có trạng thái `DRAFT`, `ACTIVE`, `INACTIVE`.
+- [ ] Product và variant đã được dùng trong order không bị hard-delete. (Sẽ hoàn thiện ở mục 5.7 Orders & Checkout)
+- [x] Admin CRUD category, brand, product, variant và specification.
+- [x] Public API chỉ trả sản phẩm đang active.
+- [x] Danh sách sản phẩm hỗ trợ pagination, keyword, category, brand, khoảng giá, specification và sort.
+- [x] Chi tiết sản phẩm được truy cập bằng slug duy nhất.
+- [x] Thêm database index dựa trên query thực tế.
 - [ ] Tạo S3 presigned upload URL cho admin.
 - [ ] Chỉ lưu metadata/object key hợp lệ sau upload.
 - [ ] Cache danh sách và chi tiết catalog phổ biến bằng Redis.

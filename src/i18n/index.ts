@@ -29,6 +29,20 @@ const errorMessageKeys = {
   [ERROR_CODES.ADDRESS_NOT_FOUND]: 'errors.addressNotFound',
   [ERROR_CODES.INVALID_TARGET_ROLE]: 'errors.invalidTargetRole',
   [ERROR_CODES.CANNOT_DEACTIVATE_LAST_ADMIN]: 'errors.cannotDeactivateLastAdmin',
+  [ERROR_CODES.CATEGORY_NOT_FOUND]: 'errors.categoryNotFound',
+  [ERROR_CODES.CATEGORY_SLUG_EXISTS]: 'errors.categorySlugExists',
+  [ERROR_CODES.CATEGORY_HAS_CHILDREN]: 'errors.categoryHasChildren',
+  [ERROR_CODES.CATEGORY_HAS_PRODUCTS]: 'errors.categoryHasProducts',
+  [ERROR_CODES.CATEGORY_CYCLIC_HIERARCHY]: 'errors.categoryCyclicHierarchy',
+  [ERROR_CODES.BRAND_NOT_FOUND]: 'errors.brandNotFound',
+  [ERROR_CODES.BRAND_SLUG_EXISTS]: 'errors.brandSlugExists',
+  [ERROR_CODES.BRAND_HAS_PRODUCTS]: 'errors.brandHasProducts',
+  [ERROR_CODES.PRODUCT_NOT_FOUND]: 'errors.productNotFound',
+  [ERROR_CODES.PRODUCT_SLUG_EXISTS]: 'errors.productSlugExists',
+  [ERROR_CODES.PRODUCT_SKU_EXISTS]: 'errors.productSkuExists',
+  [ERROR_CODES.VARIANT_NOT_FOUND]: 'errors.variantNotFound',
+  [ERROR_CODES.PRODUCT_IMAGE_NOT_FOUND]: 'errors.productImageNotFound',
+  [ERROR_CODES.SPECIFICATION_NOT_FOUND]: 'errors.specNotFound',
 } as const satisfies Record<ErrorCode, MessageKey>;
 
 function interpolate(message: string, params: TranslationParams): string {
