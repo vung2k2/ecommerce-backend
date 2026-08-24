@@ -119,7 +119,7 @@ route -> middleware -> controller -> service/use case -> repository -> database
 - [x] Validate environment variables khi khởi động.
 - [ ] Cấu hình PostgreSQL, Prisma, migration và seed. PostgreSQL/Prisma đã setup; migration và seed sẽ làm khi có model đầu tiên.
 - [ ] Cấu hình Redis và xử lý lỗi kết nối.
-- [ ] Tạo Dockerfile nhiều stage và Docker Compose cho local. Docker Compose PostgreSQL đã có; Dockerfile để tới giai đoạn đóng gói ứng dụng.
+- [x] Tạo Dockerfile nhiều stage và Docker Compose cho local.
 - [x] Chuẩn hóa success response, error response và pagination metadata.
 - [ ] Tạo centralized error handler và mapping domain error sang HTTP status. Handler nền tảng đã có; mapping domain error làm khi bắt đầu module nghiệp vụ.
 - [x] Thêm request ID, Pino logger và request logging.
@@ -443,10 +443,10 @@ Mục tiêu coverage tối thiểu 80% cho auth, inventory, coupon, order và pa
 
 ### Continuous Integration
 
-- [ ] Trigger trên pull request và push phù hợp.
-- [ ] Chạy `npm ci`, lint, typecheck, Prisma validation, test và build.
-- [ ] Dùng PostgreSQL và Redis service containers.
-- [ ] Cache npm hợp lý nhưng không cache secret hoặc build không tin cậy.
+- [x] Trigger trên pull request và push phù hợp.
+- [x] Chạy `npm ci`, lint, typecheck, Prisma validation, test và build.
+- [x] Dùng PostgreSQL và Redis service containers.
+- [x] Cache npm hợp lý nhưng không cache secret hoặc build không tin cậy.
 - [ ] Không cho CD chạy nếu CI thất bại.
 
 ### Continuous Deployment

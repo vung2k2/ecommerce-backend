@@ -1,4 +1,50 @@
 services:
+  api:
+    build:
+      context: .
+      target: runner
+    image: ecommerce-backend:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ecommerce:ecommerce@postgres:5432/ecommerce?schema=public
+    ports:
+      - '127.0.0.1:${API_PORT:-3000}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health/ready').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  migrator:
+    build:
+      context: .
+      target: migrator
+    image: ecommerce-backend:migrator
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ecommerce:ecommerce@postgres:5432/ecommerce?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
   postgres:
     image: postgres:17-alpine
     container_name: postgres
