@@ -429,6 +429,7 @@ registry.registerPath({
   responses: {
     200: { description: 'Product deleted' },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
+    409: errorResponse(ERROR_CODES.STOCK_HISTORY_EXISTS),
   },
 });
 adminCatalogRouter.delete(
@@ -496,6 +497,7 @@ registry.registerPath({
   responses: {
     200: { description: 'Variant deleted' },
     404: errorResponse(ERROR_CODES.VARIANT_NOT_FOUND),
+    409: errorResponse(ERROR_CODES.STOCK_HISTORY_EXISTS),
   },
 });
 adminCatalogRouter.delete(

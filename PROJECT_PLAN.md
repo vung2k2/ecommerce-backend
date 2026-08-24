@@ -211,15 +211,15 @@ Acceptance criteria:
 
 ### 5.4. Tồn kho
 
-- [ ] Thiết kế inventory theo variant gồm `onHand` và `reserved`.
-- [ ] Thiết kế stock movement/audit ledger.
-- [ ] Admin nhập, giảm và điều chỉnh tồn kho với lý do.
-- [ ] Không cho `onHand`, `reserved` hoặc available stock âm.
+- [x] Thiết kế inventory theo variant gồm `onHand` và `reserved`.
+- [x] Thiết kế stock movement/audit ledger.
+- [x] Admin nhập, giảm và điều chỉnh tồn kho với lý do.
+- [x] Không cho `onHand`, `reserved` hoặc available stock âm.
 - [ ] Reserve stock khi tạo order cần giữ hàng.
 - [ ] Commit reservation khi order được xác nhận phù hợp.
 - [ ] Release reservation khi payment thất bại, hết hạn hoặc order bị hủy.
-- [ ] Dùng transaction và conditional update/locking để chống overselling.
-- [ ] Mọi thao tác tồn kho lặp lại phải idempotent theo business event.
+- [x] Dùng transaction và conditional update/locking để chống overselling.
+- [x] Mọi thao tác tồn kho lặp lại phải idempotent theo business event.
 
 Acceptance criteria:
 

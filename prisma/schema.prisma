@@ -19,6 +19,14 @@ enum ProductStatus {
   INACTIVE
 }
 
+enum StockMovementType {
+  RESTOCK
+  ADJUSTMENT
+  RESERVE
+  COMMIT
+  RELEASE
+}
+
 model User {
   id            String           @id @default(uuid()) @db.Uuid
   email         String           @unique @db.VarChar(255)
@@ -32,6 +40,7 @@ model User {
   addresses     Address[]
   permissions   UserPermission[]
   auditLogs     AuditLog[]
+  stockMovements StockMovement[]
 
   @@map("users")
 }
@@ -170,6 +179,7 @@ model ProductVariant {
   options        Json?    @db.JsonB
   isActive       Boolean  @default(true) @map("is_active")
   product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory      Inventory?
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -189,4 +199,39 @@ model ProductSpecification {
 
   @@index([productId])
   @@map("product_specifications")
+}
+
+model Inventory {
+  id        String          @id @default(uuid()) @db.Uuid
+  variantId String          @unique @map("variant_id") @db.Uuid
+  onHand    Int             @default(0) @map("on_hand")
+  reserved  Int             @default(0)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  variant   ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
+
+  @@map("inventories")
+}
+
+model StockMovement {
+  id                   String            @id @default(uuid()) @db.Uuid
+  inventoryId          String            @map("inventory_id") @db.Uuid
+  type                 StockMovementType
+  onHandChange         Int               @default(0) @map("on_hand_change")
+  reservedChange       Int               @default(0) @map("reserved_change")
+  balanceAfterOnHand   Int               @map("balance_after_on_hand")
+  balanceAfterReserved Int               @map("balance_after_reserved")
+  reason               String?           @db.VarChar(255)
+  referenceType        String?           @map("reference_type") @db.VarChar(50)
+  referenceId          String?           @map("reference_id") @db.VarChar(255)
+  actorId              String?           @map("actor_id") @db.Uuid
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  inventory            Inventory         @relation(fields: [inventoryId], references: [id], onDelete: Restrict)
+  actor                User?             @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([inventoryId])
+  @@index([actorId])
+  @@unique([inventoryId, type, referenceType, referenceId])
+  @@map("stock_movements")
 }

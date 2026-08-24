@@ -718,6 +718,10 @@ export const catalogService = {
       throw new AppError(404, ERROR_CODES.PRODUCT_NOT_FOUND);
     }
 
+    if (await catalogRepository.productHasStockHistory(id)) {
+      throw new AppError(409, ERROR_CODES.STOCK_HISTORY_EXISTS);
+    }
+
     await prisma.$transaction(async (tx) => {
       await catalogRepository.deleteProduct(id, tx);
 
@@ -832,6 +836,10 @@ export const catalogService = {
     const variant = await catalogRepository.findVariantById(id);
     if (!variant) {
       throw new AppError(404, ERROR_CODES.VARIANT_NOT_FOUND);
+    }
+
+    if (await catalogRepository.variantHasStockHistory(id)) {
+      throw new AppError(409, ERROR_CODES.STOCK_HISTORY_EXISTS);
     }
 
     await prisma.$transaction(async (tx) => {

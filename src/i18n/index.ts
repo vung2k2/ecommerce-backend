@@ -43,6 +43,12 @@ const errorMessageKeys = {
   [ERROR_CODES.VARIANT_NOT_FOUND]: 'errors.variantNotFound',
   [ERROR_CODES.PRODUCT_IMAGE_NOT_FOUND]: 'errors.productImageNotFound',
   [ERROR_CODES.SPECIFICATION_NOT_FOUND]: 'errors.specNotFound',
+  [ERROR_CODES.INVENTORY_NOT_FOUND]: 'errors.inventoryNotFound',
+  [ERROR_CODES.INSUFFICIENT_STOCK]: 'errors.insufficientStock',
+  [ERROR_CODES.INVALID_STOCK_ADJUSTMENT]: 'errors.invalidStockAdjustment',
+  [ERROR_CODES.INVALID_STOCK_OPERATION]: 'errors.invalidStockOperation',
+  [ERROR_CODES.STOCK_EVENT_CONFLICT]: 'errors.stockEventConflict',
+  [ERROR_CODES.STOCK_HISTORY_EXISTS]: 'errors.stockHistoryExists',
 } as const satisfies Record<ErrorCode, MessageKey>;
 
 function interpolate(message: string, params: TranslationParams): string {

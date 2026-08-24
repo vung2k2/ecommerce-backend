@@ -516,6 +516,7 @@ export const catalogRepository = {
                 compareAtPrice: v.compareAtPrice ?? null,
                 ...(v.options !== undefined ? { options: v.options } : {}),
                 isActive: v.isActive ?? true,
+                inventory: { create: {} },
               })),
             },
           }
@@ -560,6 +561,13 @@ export const catalogRepository = {
     });
   },
 
+  async productHasStockHistory(id: string, tx: PrismaClientOrTx = prisma) {
+    const count = await tx.stockMovement.count({
+      where: { inventory: { variant: { productId: id } } },
+    });
+    return count > 0;
+  },
+
   // --- Variant Operations ---
   findVariantById(id: string, tx: PrismaClientOrTx = prisma) {
     return tx.productVariant.findUnique({
@@ -583,6 +591,7 @@ export const catalogRepository = {
         compareAtPrice: data.compareAtPrice ?? null,
         ...(data.options !== undefined ? { options: data.options } : {}),
         isActive: data.isActive ?? true,
+        inventory: { create: {} },
       },
     });
   },
@@ -607,6 +616,13 @@ export const catalogRepository = {
     return tx.productVariant.delete({
       where: { id },
     });
+  },
+
+  async variantHasStockHistory(id: string, tx: PrismaClientOrTx = prisma) {
+    const count = await tx.stockMovement.count({
+      where: { inventory: { variantId: id } },
+    });
+    return count > 0;
   },
 
   // --- Image Operations ---

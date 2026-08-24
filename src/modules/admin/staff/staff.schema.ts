@@ -1,18 +1,6 @@
 import { z } from '../../../utils/zod.js';
-import { PERMISSIONS } from '../../../constants/index.js';
+import { PERMISSION_LIST } from '../../../constants/index.js';
 import { registry } from '../../../docs/registry.js';
-
-const permissionValues = [
-  PERMISSIONS.CATALOG_READ,
-  PERMISSIONS.CATALOG_WRITE,
-  PERMISSIONS.INVENTORY_READ,
-  PERMISSIONS.INVENTORY_WRITE,
-  PERMISSIONS.ORDER_READ,
-  PERMISSIONS.ORDER_UPDATE,
-  PERMISSIONS.COUPON_MANAGE,
-  PERMISSIONS.REVIEW_MODERATE,
-  PERMISSIONS.REPORT_READ,
-] as const;
 
 export const staffIdParamSchema = z.object({
   id: z
@@ -43,7 +31,7 @@ export const createStaffBodySchema = z.object({
     .max(100)
     .openapi({ example: 'Staff Name' }),
   permissions: z
-    .array(z.enum(permissionValues))
+    .array(z.enum(PERMISSION_LIST))
     .transform((perms) => Array.from(new Set(perms)))
     .default([])
     .openapi({ example: ['catalog:read', 'catalog:write'] }),
@@ -58,7 +46,7 @@ registry.register('UpdateStaffStatusDto', updateStaffStatusBodySchema);
 
 export const updateStaffPermissionsBodySchema = z.object({
   permissions: z
-    .array(z.enum(permissionValues))
+    .array(z.enum(PERMISSION_LIST))
     .transform((perms) => Array.from(new Set(perms)))
     .openapi({ example: ['catalog:read', 'order:read'] }),
 });
@@ -82,7 +70,7 @@ export const staffResponseItemSchema = z.object({
   fullName: z.string().openapi({ example: 'Staff Name' }),
   role: z.enum(['STAFF', 'ADMIN']).openapi({ example: 'STAFF' }),
   isActive: z.boolean().openapi({ example: true }),
-  permissions: z.array(z.enum(permissionValues)).openapi({ example: ['catalog:read'] }),
+  permissions: z.array(z.enum(PERMISSION_LIST)).openapi({ example: ['catalog:read'] }),
   createdAt: z.string().datetime().openapi({ example: '2026-08-20T12:00:00.000Z' }),
   updatedAt: z.string().datetime().openapi({ example: '2026-08-20T12:00:00.000Z' }),
 });
