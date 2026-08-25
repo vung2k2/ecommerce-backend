@@ -47,8 +47,8 @@ export function createApp() {
 
   app.use(resolveRequestLocale);
 
-  // Thiết lập các HTTP security header phổ biến.
-  app.use(helmet());
+  // Thiết lập các HTTP security header phổ biến (tắt CSP để Swagger UI render được script và style).
+  app.use(helmet({ contentSecurityPolicy: false }));
 
   // Chỉ cho phép các frontend đã cấu hình gọi API và gửi cookie xác thực.
   app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));

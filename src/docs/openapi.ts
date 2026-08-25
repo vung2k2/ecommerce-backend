@@ -5,6 +5,8 @@ import { registry } from './registry.js';
 import '../modules/auth/auth.routes.js';
 import '../modules/users/users.routes.js';
 import '../modules/admin/staff/staff.routes.js';
+import '../modules/catalog/catalog.routes.js';
+import '../modules/inventory/inventory.routes.js';
 
 const apiDescription = `
 # FE – BE API Integration Guideline
