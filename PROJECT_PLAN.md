@@ -463,15 +463,15 @@ Mục tiêu coverage tối thiểu 80% cho auth, inventory, coupon, order và pa
 
 ### AWS deployment
 
-- [ ] Tạo AWS Budget và cảnh báo chi phí trước các resource khác.
-- [ ] Chọn EC2 được console đánh dấu Free Tier eligible; ưu tiên `t3.small` nếu credit/eligibility cho phép.
+- [x] Tạo AWS Budget và cảnh báo chi phí trước các resource khác.
+- [x] Chọn EC2 được console đánh dấu Free Tier eligible; ưu tiên `t3.small` nếu credit/eligibility cho phép.
 - [x] Chạy Caddy, API, worker, PostgreSQL và Redis bằng Docker Compose.
-- [ ] Chỉ public port `80/443`; giới hạn SSH theo IP quản trị.
-- [ ] Không public PostgreSQL hoặc Redis.
+- [x] Chỉ public port `80/443`; giới hạn SSH theo IP quản trị.
+- [x] Không public PostgreSQL hoặc Redis.
 - [ ] Trỏ hostname miễn phí tới EC2 và để Caddy cấp HTTPS.
 - [ ] Gắn EC2 IAM role chỉ có quyền cần thiết trên đúng S3 bucket.
-- [ ] Cấu hình health check, restart policy, resource limit và log rotation.
-- [ ] Lưu production secret trong file quyền hạn chế hoặc secret mechanism phù hợp; không bake vào image.
+- [x] Cấu hình health check, restart policy, resource limit và log rotation.
+- [x] Lưu production secret trong file quyền hạn chế hoặc secret mechanism phù hợp; không bake vào image.
 - [ ] Backup PostgreSQL hằng ngày bằng `pg_dump` lên private S3 và giữ bảy bản.
 - [ ] Thử restore backup thay vì chỉ kiểm tra file tồn tại.
 - [ ] Viết checklist teardown để tránh resource tiếp tục phát sinh phí.
