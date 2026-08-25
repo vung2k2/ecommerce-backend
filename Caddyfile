@@ -1,0 +1,26 @@
+{
+    # Tắt admin API qua HTTP để tăng tính bảo mật
+    admin off
+}
+
+# Domain hoặc hostname trỏ tới EC2 (mặc định lấy từ biến môi trường DOMAIN_NAME hoặc :80 nếu chưa có domain)
+{$DOMAIN_NAME::80} {
+    # Chuyển tiếp toàn bộ request sang container api cổng 3000
+    reverse_proxy api:3000 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Bật nén phản hồi (gzip và zstandard)
+    encode zstd gzip
+
+    # Giới hạn kích thước log để tránh tràn đĩa EC2
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+            roll_keep_for 720h
+        }
+    }
+}

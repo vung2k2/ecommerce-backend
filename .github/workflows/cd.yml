@@ -1,0 +1,136 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    name: Build & Push Images to GHCR
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set Image Tag
+        id: set_tag
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "tag=sha-${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Migrator Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrator
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-migrator:${{ steps.set_tag.outputs.tag }}
+            ghcr.io/${{ github.repository }}-migrator:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Push API Runner Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-api:${{ steps.set_tag.outputs.tag }}
+            ghcr.io/${{ github.repository }}-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Production EC2
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Copy Compose and Caddy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: 'compose.prod.yaml,Caddyfile'
+          target: '~/app'
+
+      - name: Execute Deployment on EC2
+        uses: appleboy/ssh-action@v1.2.1
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          REPO: ${{ github.repository }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_PAT: ${{ secrets.GHCR_PULL_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG,REPO,GHCR_USER,GHCR_PAT
+          script: |
+            set -e
+            cd ~/app
+
+            # Đăng nhập GHCR trên EC2 (nếu package ở chế độ private)
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin || true
+
+            export API_IMAGE="ghcr.io/${REPO}-api:${IMAGE_TAG}"
+            export MIGRATOR_IMAGE="ghcr.io/${REPO}-migrator:${IMAGE_TAG}"
+
+            echo "🚀 Pulling new images: $API_IMAGE..."
+            docker compose -f compose.prod.yaml pull api migrator
+
+            echo "🔄 Running database migrations..."
+            docker compose -f compose.prod.yaml run --rm migrator
+
+            echo "📦 Upgrading containers..."
+            docker compose -f compose.prod.yaml up -d --remove-orphans
+
+            echo "🔍 Waiting for API readiness check..."
+            for i in {1..12}; do
+              if docker compose -f compose.prod.yaml exec -T api node -e "fetch('http://127.0.0.1:3000/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
+                echo "✅ Deployment successful! API is healthy."
+                exit 0
+              fi
+              echo "Waiting for health check... ($i/12)"
+              sleep 5
+            done
+
+            echo "❌ Health check failed after 60s!"
+            exit 1

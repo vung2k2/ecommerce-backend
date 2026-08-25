@@ -447,17 +447,17 @@ Mục tiêu coverage tối thiểu 80% cho auth, inventory, coupon, order và pa
 - [x] Chạy `npm ci`, lint, typecheck, Prisma validation, test và build.
 - [x] Dùng PostgreSQL và Redis service containers.
 - [x] Cache npm hợp lý nhưng không cache secret hoặc build không tin cậy.
-- [ ] Không cho CD chạy nếu CI thất bại.
+- [x] Không cho CD chạy nếu CI thất bại.
 
 ### Continuous Deployment
 
-- [ ] Trigger sau khi code vào `main` và CI thành công.
-- [ ] Build Docker image nhiều stage.
+- [x] Trigger sau khi code vào `main` và CI thành công.
+- [x] Build Docker image nhiều stage.
 - [ ] Scan dependency/image ở mức cơ bản.
-- [ ] Tag image bằng commit SHA và push lên GHCR.
-- [ ] Chỉ cho một production deployment chạy tại một thời điểm.
-- [ ] SSH vào EC2 bằng deploy credential có phạm vi tối thiểu.
-- [ ] Pull image, chạy `prisma migrate deploy`, cập nhật Compose và kiểm tra `/health/ready`.
+- [x] Tag image bằng commit SHA và push lên GHCR.
+- [x] Chỉ cho một production deployment chạy tại một thời điểm.
+- [x] SSH vào EC2 bằng deploy credential có phạm vi tối thiểu.
+- [x] Pull image, chạy `prisma migrate deploy`, cập nhật Compose và kiểm tra `/health/ready`.
 - [ ] Giữ tag trước để rollback application.
 - [ ] Không tự động deploy migration phá vỡ tương thích; dùng expand/migrate/contract khi cần.
 
@@ -465,7 +465,7 @@ Mục tiêu coverage tối thiểu 80% cho auth, inventory, coupon, order và pa
 
 - [ ] Tạo AWS Budget và cảnh báo chi phí trước các resource khác.
 - [ ] Chọn EC2 được console đánh dấu Free Tier eligible; ưu tiên `t3.small` nếu credit/eligibility cho phép.
-- [ ] Chạy Caddy, API, worker, PostgreSQL và Redis bằng Docker Compose.
+- [x] Chạy Caddy, API, worker, PostgreSQL và Redis bằng Docker Compose.
 - [ ] Chỉ public port `80/443`; giới hạn SSH theo IP quản trị.
 - [ ] Không public PostgreSQL hoặc Redis.
 - [ ] Trỏ hostname miễn phí tới EC2 và để Caddy cấp HTTPS.
