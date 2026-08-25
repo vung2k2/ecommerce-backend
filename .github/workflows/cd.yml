@@ -114,7 +114,18 @@ jobs:
             export MIGRATOR_IMAGE="ghcr.io/${REPO}-migrator:${IMAGE_TAG}"
 
             echo "🚀 Pulling new images: $API_IMAGE..."
-            docker compose -f compose.prod.yaml pull api migrator
+            for attempt in 1 2 3; do
+              if docker compose -f compose.prod.yaml pull api migrator; then
+                echo "✅ Images pulled successfully."
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "❌ Failed to pull images after 3 attempts."
+                exit 1
+              fi
+              echo "⚠️ Pull failed, retrying in 5s (attempt $attempt/3)..."
+              sleep 5
+            done
 
             echo "🔄 Running database migrations..."
             docker compose -f compose.prod.yaml run --rm migrator
