@@ -11,6 +11,17 @@ export const updateProfileSchema = z
       .max(100, 'validation.fullNameMax100')
       .optional()
       .openapi({ example: 'Bob Smith' }),
+    avatarUrl: z
+      .string()
+      .trim()
+      .url('validation.invalidFormat')
+      .nullable()
+      .optional()
+      .openapi({
+        example:
+          'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/avatars/user-id/upload-id.jpg',
+        description: 'Owner-scoped temporary URL returned by POST /uploads/presign',
+      }),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'validation.updateAtLeastOneField',
@@ -100,6 +111,7 @@ export const userResponseSchema = z.object({
     id: z.string().uuid().openapi({ example: '7f4cddc1-d6fd-4bda-a66a-65d09f244bf9' }),
     email: z.email().openapi({ example: 'bob@example.com' }),
     fullName: z.string().openapi({ example: 'Bob Smith' }),
+    avatarUrl: z.string().nullable().optional().openapi({ example: 'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/avatars/avatar-1.jpg' }),
     role: z.enum(['CUSTOMER', 'STAFF', 'ADMIN']).openapi({ example: 'CUSTOMER' }),
     isActive: z.boolean().openapi({ example: true }),
     createdAt: z.string().datetime().openapi({ example: '2026-08-20T12:00:00.000Z' }),

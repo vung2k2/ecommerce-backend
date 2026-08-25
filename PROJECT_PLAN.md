@@ -194,8 +194,9 @@ Acceptance criteria:
 - [x] Danh sách sản phẩm hỗ trợ pagination, keyword, category, brand, khoảng giá, specification và sort.
 - [x] Chi tiết sản phẩm được truy cập bằng slug duy nhất.
 - [x] Thêm database index dựa trên query thực tế.
-- [ ] Tạo S3 presigned upload URL cho admin.
-- [ ] Chỉ lưu metadata/object key hợp lệ sau upload.
+- [x] Tạo S3 presigned upload URL cho admin và người dùng với cơ chế purpose và thư mục temp/ lưu tạm.
+- [x] Chỉ lưu metadata/object key hợp lệ sau upload.
+- [ ] Cấu hình S3 lifecycle tự xóa object chưa commit trong `temp/` sau một ngày.
 - [ ] Cache danh sách và chi tiết catalog phổ biến bằng Redis.
 - [ ] Invalidate cache khi admin cập nhật dữ liệu liên quan.
 
@@ -392,7 +393,7 @@ POST   /api/v1/products/:productId/reviews
 ...    /api/v1/admin/inventory
 ...    /api/v1/admin/coupons
 ...    /api/v1/admin/orders
-POST   /api/v1/admin/uploads/presign
+POST   /api/v1/uploads/presign
 GET    /api/v1/admin/staff
 POST   /api/v1/admin/staff
 PATCH  /api/v1/admin/staff/:id

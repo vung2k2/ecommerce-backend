@@ -16,6 +16,7 @@ const userProfileResponseSchema = z.object({
       id: z.string(),
       email: z.string(),
       fullName: z.string(),
+      avatarUrl: z.string().nullable().optional(),
       role: z.string(),
       isActive: z.boolean(),
       createdAt: z.string(),
@@ -159,6 +160,46 @@ describe('Users & Address Management', () => {
         .set('Authorization', `Bearer ${tokenA}`);
       const parsedGet = userProfileResponseSchema.parse(profile.body as unknown);
       expect(parsedGet.data.user.fullName).toBe('Updated Alpha Name');
+    });
+
+    it('rejects avatar update with foreign or invalid URL with 422 INVALID_IMAGE_URL', async () => {
+      const res = await request(app)
+        .patch('/api/v1/users/me')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ avatarUrl: 'https://evil-site.com/avatars/avatar.jpg' });
+
+      expect(res.status).toBe(422);
+      const parsed = errorResponseSchema.parse(res.body as unknown);
+      expect(parsed.error.code).toBe('INVALID_IMAGE_URL');
+    });
+
+    it('rejects avatar update with wrong folder with 422 INVALID_IMAGE_URL', async () => {
+      const res = await request(app)
+        .patch('/api/v1/users/me')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ avatarUrl: 'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/user/img.jpg' });
+
+      expect(res.status).toBe(422);
+      const parsed = errorResponseSchema.parse(res.body as unknown);
+      expect(parsed.error.code).toBe('INVALID_IMAGE_URL');
+    });
+
+    it('rejects another user temp avatar and permanent avatar URLs', async () => {
+      const urls = [
+        'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/avatars/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.jpg',
+        'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/avatars/shared.jpg',
+      ];
+
+      for (const avatarUrl of urls) {
+        const res = await request(app)
+          .patch('/api/v1/users/me')
+          .set('Authorization', `Bearer ${tokenA}`)
+          .send({ avatarUrl });
+
+        expect(res.status).toBe(422);
+        const parsed = errorResponseSchema.parse(res.body as unknown);
+        expect(parsed.error.code).toBe('INVALID_IMAGE_URL');
+      }
     });
   });
 

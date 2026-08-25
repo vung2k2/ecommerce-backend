@@ -1,7 +1,14 @@
-import { AUDIT_ACTIONS, ERROR_CODES, type ErrorCode } from '../../constants/index.js';
+import {
+  AUDIT_ACTIONS,
+  ERROR_CODES,
+  UPLOAD_PURPOSES,
+  type ErrorCode,
+} from '../../constants/index.js';
 import { prisma } from '../../database/prisma.js';
 import { Prisma, type Category } from '../../generated/prisma/client.js';
 import { auditRepository } from '../audit/audit.repository.js';
+import { UPLOAD_POLICIES } from '../uploads/uploads.policy.js';
+import { s3Service } from '../../services/s3.service.js';
 import { AppError } from '../../utils/app-error.js';
 import {
   catalogRepository,
@@ -95,6 +102,30 @@ async function handlePrismaUnique<T>(
     }
     throw error;
   }
+}
+
+function requireUploadActorId(actorId: string | undefined): string {
+  if (!actorId) {
+    throw new AppError(403, ERROR_CODES.FORBIDDEN);
+  }
+
+  return actorId;
+}
+
+async function promoteCatalogImage(
+  url: string,
+  purpose: typeof UPLOAD_PURPOSES.PRODUCT_IMAGE | typeof UPLOAD_PURPOSES.BRAND_LOGO,
+  actorId: string | undefined,
+) {
+  const policy = UPLOAD_POLICIES[purpose];
+
+  return s3Service.promoteTempUpload({
+    url,
+    expectedFolder: policy.folder,
+    ownerId: requireUploadActorId(actorId),
+    allowedMimeTypes: policy.allowedMimeTypes,
+    maxSizeBytes: policy.maxSizeBytes,
+  });
 }
 
 interface CategoryTreeNode {
@@ -369,34 +400,51 @@ export const catalogService = {
       throw new AppError(409, ERROR_CODES.BRAND_SLUG_EXISTS);
     }
 
-    return handlePrismaUnique(async () => {
-      return prisma.$transaction(async (tx) => {
-        const brand = await catalogRepository.createBrand(
-          {
-            name: dto.name,
-            slug,
-            description: dto.description ?? null,
-            logoUrl: dto.logoUrl ?? null,
-          },
-          tx,
-        );
+    const promotedLogo = dto.logoUrl
+      ? await promoteCatalogImage(dto.logoUrl, UPLOAD_PURPOSES.BRAND_LOGO, actorId)
+      : null;
 
-        if (actorId) {
-          await auditRepository.createAuditLog(
+    try {
+      const brand = await handlePrismaUnique(async () => {
+        return prisma.$transaction(async (tx) => {
+          const created = await catalogRepository.createBrand(
             {
-              actorId,
-              action: AUDIT_ACTIONS.BRAND_CREATED,
-              targetType: 'Brand',
-              targetId: brand.id,
-              payload: { name: brand.name, slug: brand.slug },
+              name: dto.name,
+              slug,
+              description: dto.description ?? null,
+              logoUrl: promotedLogo?.fileUrl ?? null,
             },
             tx,
           );
-        }
 
-        return formatCatalogResponse(brand);
-      });
-    }, { slug: ERROR_CODES.BRAND_SLUG_EXISTS });
+          if (actorId) {
+            await auditRepository.createAuditLog(
+              {
+                actorId,
+                action: AUDIT_ACTIONS.BRAND_CREATED,
+                targetType: 'Brand',
+                targetId: created.id,
+                payload: { name: created.name, slug: created.slug },
+              },
+              tx,
+            );
+          }
+
+          return formatCatalogResponse(created);
+        });
+      }, { slug: ERROR_CODES.BRAND_SLUG_EXISTS });
+
+      if (promotedLogo) {
+        await s3Service.cleanupObjects([promotedLogo.tempKey]);
+      }
+
+      return brand;
+    } catch (error) {
+      if (promotedLogo) {
+        await s3Service.cleanupObjects([promotedLogo.fileKey]);
+      }
+      throw error;
+    }
   },
 
   async updateBrand(id: string, dto: UpdateBrandDto, actorId?: string) {
@@ -416,35 +464,68 @@ export const catalogService = {
       }
     }
 
-    return handlePrismaUnique(async () => {
-      return prisma.$transaction(async (tx) => {
-        const updated = await catalogRepository.updateBrand(
-          id,
-          {
-            name: dto.name,
-            slug,
-            description: dto.description,
-            logoUrl: dto.logoUrl,
-          },
-          tx,
+    let finalLogoUrl: string | null | undefined;
+    let promotedLogo: Awaited<ReturnType<typeof promoteCatalogImage>> | null = null;
+    if (dto.logoUrl !== undefined) {
+      if (dto.logoUrl === null) {
+        finalLogoUrl = null;
+      } else {
+        promotedLogo = await promoteCatalogImage(
+          dto.logoUrl,
+          UPLOAD_PURPOSES.BRAND_LOGO,
+          actorId,
         );
+        finalLogoUrl = promotedLogo.fileUrl;
+      }
+    }
 
-        if (actorId) {
-          await auditRepository.createAuditLog(
+    try {
+      const brand = await handlePrismaUnique(async () => {
+        return prisma.$transaction(async (tx) => {
+          const updated = await catalogRepository.updateBrand(
+            id,
             {
-              actorId,
-              action: AUDIT_ACTIONS.BRAND_UPDATED,
-              targetType: 'Brand',
-              targetId: id,
-              payload: { changes: dto },
+              name: dto.name,
+              slug,
+              description: dto.description,
+              logoUrl: finalLogoUrl,
             },
             tx,
           );
-        }
 
-        return formatCatalogResponse(updated);
-      });
-    }, { slug: ERROR_CODES.BRAND_SLUG_EXISTS });
+          if (actorId) {
+            await auditRepository.createAuditLog(
+              {
+                actorId,
+                action: AUDIT_ACTIONS.BRAND_UPDATED,
+                targetType: 'Brand',
+                targetId: id,
+                payload: { changes: dto },
+              },
+              tx,
+            );
+          }
+
+          return formatCatalogResponse(updated);
+        });
+      }, { slug: ERROR_CODES.BRAND_SLUG_EXISTS });
+
+      const oldKey =
+        dto.logoUrl !== undefined && existing.logoUrl
+          ? s3Service.extractKeyFromUrl(existing.logoUrl)
+          : null;
+      await s3Service.cleanupObjects([
+        ...(oldKey ? [oldKey] : []),
+        ...(promotedLogo ? [promotedLogo.tempKey] : []),
+      ]);
+
+      return brand;
+    } catch (error) {
+      if (promotedLogo) {
+        await s3Service.cleanupObjects([promotedLogo.fileKey]);
+      }
+      throw error;
+    }
   },
 
   async deleteBrand(id: string, actorId?: string) {
@@ -474,6 +555,11 @@ export const catalogService = {
         );
       }
     });
+
+    if (brand.logoUrl) {
+      const key = s3Service.extractKeyFromUrl(brand.logoUrl);
+      if (key) await s3Service.cleanupObjects([key]);
+    }
   },
 
   // ==================== Products ====================
@@ -593,61 +679,77 @@ export const catalogService = {
       }
     }
 
-    // Sanitize images to ensure at most 1 isThumbnail
+    const promotedImages: Awaited<ReturnType<typeof promoteCatalogImage>>[] = [];
+
+    // Sanitize and promote images to ensure at most 1 isThumbnail
     let sanitizedImages: CreateProductData['images'];
-    if (dto.images && dto.images.length > 0) {
-      const firstThumbnailIdx = dto.images.findIndex((img) => img.isThumbnail);
-      const thumbnailIdx = firstThumbnailIdx !== -1 ? firstThumbnailIdx : 0;
-      sanitizedImages = dto.images.map((img, idx) => ({
-        url: img.url,
-        isThumbnail: idx === thumbnailIdx,
-        displayOrder: img.displayOrder ?? idx,
-        altText: img.altText ?? null,
-      }));
-    }
-
-    const createData: CreateProductData = {
-      name: dto.name,
-      slug,
-      description: dto.description ?? null,
-      status: dto.status,
-      categoryId: dto.categoryId,
-      brandId: dto.brandId ?? null,
-      images: sanitizedImages,
-      specifications: dto.specifications,
-      variants: dto.variants?.map((v) => ({
-        sku: v.sku,
-        name: v.name,
-        price: v.price,
-        compareAtPrice: v.compareAtPrice ?? null,
-        options: v.options as Prisma.InputJsonValue | undefined,
-        isActive: v.isActive ?? true,
-      })),
-    };
-
-    return handlePrismaUnique(async () => {
-      return prisma.$transaction(async (tx) => {
-        const product = await catalogRepository.createProductWithDetails(createData, tx);
-
-        if (actorId) {
-          await auditRepository.createAuditLog(
-            {
-              actorId,
-              action: AUDIT_ACTIONS.PRODUCT_CREATED,
-              targetType: 'Product',
-              targetId: product.id,
-              payload: { name: product.name, slug: product.slug },
-            },
-            tx,
+    try {
+      if (dto.images && dto.images.length > 0) {
+        for (const image of dto.images) {
+          promotedImages.push(
+            await promoteCatalogImage(image.url, UPLOAD_PURPOSES.PRODUCT_IMAGE, actorId),
           );
         }
 
-        return formatCatalogResponse(product);
+        const firstThumbnailIdx = dto.images.findIndex((image) => image.isThumbnail);
+        const thumbnailIdx = firstThumbnailIdx !== -1 ? firstThumbnailIdx : 0;
+        sanitizedImages = dto.images.map((image, index) => ({
+          url: promotedImages[index]?.fileUrl ?? image.url,
+          isThumbnail: index === thumbnailIdx,
+          displayOrder: image.displayOrder ?? index,
+          altText: image.altText ?? null,
+        }));
+      }
+
+      const createData: CreateProductData = {
+        name: dto.name,
+        slug,
+        description: dto.description ?? null,
+        status: dto.status,
+        categoryId: dto.categoryId,
+        brandId: dto.brandId ?? null,
+        images: sanitizedImages,
+        specifications: dto.specifications,
+        variants: dto.variants?.map((variant) => ({
+          sku: variant.sku,
+          name: variant.name,
+          price: variant.price,
+          compareAtPrice: variant.compareAtPrice ?? null,
+          options: variant.options as Prisma.InputJsonValue | undefined,
+          isActive: variant.isActive ?? true,
+        })),
+      };
+
+      const product = await handlePrismaUnique(async () => {
+        return prisma.$transaction(async (tx) => {
+          const created = await catalogRepository.createProductWithDetails(createData, tx);
+
+          if (actorId) {
+            await auditRepository.createAuditLog(
+              {
+                actorId,
+                action: AUDIT_ACTIONS.PRODUCT_CREATED,
+                targetType: 'Product',
+                targetId: created.id,
+                payload: { name: created.name, slug: created.slug },
+              },
+              tx,
+            );
+          }
+
+          return formatCatalogResponse(created);
+        });
+      }, {
+        slug: ERROR_CODES.PRODUCT_SLUG_EXISTS,
+        sku: ERROR_CODES.PRODUCT_SKU_EXISTS,
       });
-    }, {
-      slug: ERROR_CODES.PRODUCT_SLUG_EXISTS,
-      sku: ERROR_CODES.PRODUCT_SKU_EXISTS,
-    });
+
+      await s3Service.cleanupObjects(promotedImages.map((image) => image.tempKey));
+      return product;
+    } catch (error) {
+      await s3Service.cleanupObjects(promotedImages.map((image) => image.fileKey));
+      throw error;
+    }
   },
 
   async updateProduct(id: string, dto: UpdateProductDto, actorId?: string) {
@@ -738,6 +840,13 @@ export const catalogService = {
         );
       }
     });
+
+    if (product.images && product.images.length > 0) {
+      const keys = product.images
+        .map((img) => s3Service.extractKeyFromUrl(img.url))
+        .filter((k): k is string => Boolean(k));
+      await s3Service.cleanupObjects(keys);
+    }
   },
 
   // ==================== Variants ====================
@@ -862,33 +971,47 @@ export const catalogService = {
 
   // ==================== Images ====================
 
-  async createImage(dto: CreateProductImageDto) {
+  async createImage(dto: CreateProductImageDto, actorId?: string) {
     const product = await catalogRepository.findProductById(dto.productId);
     if (!product) {
       throw new AppError(404, ERROR_CODES.PRODUCT_NOT_FOUND);
     }
 
-    return prisma.$transaction(async (tx) => {
-      if (dto.isThumbnail) {
-        await tx.productImage.updateMany({
-          where: { productId: dto.productId, isThumbnail: true },
-          data: { isThumbnail: false },
-        });
-      }
+    const promotedImage = await promoteCatalogImage(
+      dto.url,
+      UPLOAD_PURPOSES.PRODUCT_IMAGE,
+      actorId,
+    );
 
-      const image = await catalogRepository.createImage(
-        {
-          productId: dto.productId,
-          url: dto.url,
-          isThumbnail: dto.isThumbnail ?? false,
-          displayOrder: dto.displayOrder ?? 0,
-          altText: dto.altText ?? null,
-        },
-        tx,
-      );
+    try {
+      const image = await prisma.$transaction(async (tx) => {
+        if (dto.isThumbnail) {
+          await tx.productImage.updateMany({
+            where: { productId: dto.productId, isThumbnail: true },
+            data: { isThumbnail: false },
+          });
+        }
 
-      return formatCatalogResponse(image);
-    });
+        const created = await catalogRepository.createImage(
+          {
+            productId: dto.productId,
+            url: promotedImage.fileUrl,
+            isThumbnail: dto.isThumbnail ?? false,
+            displayOrder: dto.displayOrder ?? 0,
+            altText: dto.altText ?? null,
+          },
+          tx,
+        );
+
+        return formatCatalogResponse(created);
+      });
+
+      await s3Service.cleanupObjects([promotedImage.tempKey]);
+      return image;
+    } catch (error) {
+      await s3Service.cleanupObjects([promotedImage.fileKey]);
+      throw error;
+    }
   },
 
   async deleteImage(id: string) {
@@ -898,6 +1021,11 @@ export const catalogService = {
     }
 
     await catalogRepository.deleteImage(id);
+
+    if (image.url) {
+      const key = s3Service.extractKeyFromUrl(image.url);
+      if (key) await s3Service.cleanupObjects([key]);
+    }
   },
 
   // ==================== Specifications ====================

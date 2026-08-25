@@ -61,6 +61,7 @@ describe('OpenAPI document', () => {
         '/users/me/addresses',
         '/users/me/addresses/{id}',
         '/users/me/addresses/{id}/default',
+        '/uploads/presign',
       ].sort(),
     );
   });

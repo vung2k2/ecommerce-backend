@@ -279,6 +279,11 @@ registry.registerPath({
   responses: {
     201: { description: 'Brand created' },
     409: errorResponse(ERROR_CODES.BRAND_SLUG_EXISTS),
+    422: errorResponse([
+      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.INVALID_FILE_TYPE,
+      ERROR_CODES.FILE_SIZE_EXCEEDED,
+    ]),
   },
 });
 adminCatalogRouter.post(
@@ -302,6 +307,11 @@ registry.registerPath({
     200: { description: 'Brand updated' },
     404: errorResponse(ERROR_CODES.BRAND_NOT_FOUND),
     409: errorResponse(ERROR_CODES.BRAND_SLUG_EXISTS),
+    422: errorResponse([
+      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.INVALID_FILE_TYPE,
+      ERROR_CODES.FILE_SIZE_EXCEEDED,
+    ]),
   },
 });
 adminCatalogRouter.patch(
@@ -382,6 +392,11 @@ registry.registerPath({
     201: { description: 'Product created' },
     404: errorResponse([ERROR_CODES.CATEGORY_NOT_FOUND, ERROR_CODES.BRAND_NOT_FOUND]),
     409: errorResponse([ERROR_CODES.PRODUCT_SLUG_EXISTS, ERROR_CODES.PRODUCT_SKU_EXISTS]),
+    422: errorResponse([
+      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.INVALID_FILE_TYPE,
+      ERROR_CODES.FILE_SIZE_EXCEEDED,
+    ]),
   },
 });
 adminCatalogRouter.post(
@@ -521,6 +536,11 @@ registry.registerPath({
   responses: {
     201: { description: 'Image created' },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
+    422: errorResponse([
+      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.INVALID_FILE_TYPE,
+      ERROR_CODES.FILE_SIZE_EXCEEDED,
+    ]),
   },
 });
 adminCatalogRouter.post(

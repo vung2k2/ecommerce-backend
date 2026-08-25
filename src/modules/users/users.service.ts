@@ -1,5 +1,7 @@
-import { ERROR_CODES } from '../../constants/index.js';
+import { ERROR_CODES, UPLOAD_PURPOSES } from '../../constants/index.js';
+import { s3Service } from '../../services/s3.service.js';
 import { AppError } from '../../utils/app-error.js';
+import { UPLOAD_POLICIES } from '../uploads/uploads.policy.js';
 import { usersRepository } from './users.repository.js';
 import type { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.schema.js';
 
@@ -21,7 +23,47 @@ export const usersService = {
       throw new AppError(404, ERROR_CODES.USER_NOT_FOUND);
     }
 
-    return usersRepository.updateUser(userId, data);
+    let finalAvatarUrl: string | null | undefined;
+    let promotedAvatar: Awaited<ReturnType<typeof s3Service.promoteTempUpload>> | null = null;
+
+    if (data.avatarUrl !== undefined) {
+      if (data.avatarUrl === null) {
+        finalAvatarUrl = null;
+      } else {
+        const policy = UPLOAD_POLICIES[UPLOAD_PURPOSES.USER_AVATAR];
+        promotedAvatar = await s3Service.promoteTempUpload({
+          url: data.avatarUrl,
+          expectedFolder: policy.folder,
+          ownerId: userId,
+          allowedMimeTypes: policy.allowedMimeTypes,
+          maxSizeBytes: policy.maxSizeBytes,
+        });
+        finalAvatarUrl = promotedAvatar.fileUrl;
+      }
+    }
+
+    try {
+      const updatedUser = await usersRepository.updateUser(userId, {
+        fullName: data.fullName,
+        avatarUrl: finalAvatarUrl,
+      });
+
+      const oldKey =
+        data.avatarUrl !== undefined && user.avatarUrl
+          ? s3Service.extractKeyFromUrl(user.avatarUrl)
+          : null;
+      await s3Service.cleanupObjects([
+        ...(oldKey ? [oldKey] : []),
+        ...(promotedAvatar ? [promotedAvatar.tempKey] : []),
+      ]);
+
+      return updatedUser;
+    } catch (error) {
+      if (promotedAvatar) {
+        await s3Service.cleanupObjects([promotedAvatar.fileKey]);
+      }
+      throw error;
+    }
   },
 
   async getAddresses(userId: string) {

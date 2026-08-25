@@ -5,6 +5,7 @@ type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
 
 export interface UpdateUserData {
   fullName?: string | undefined;
+  avatarUrl?: string | null | undefined;
 }
 
 export interface CreateAddressData {
@@ -35,6 +36,7 @@ export const usersRepository = {
         id: true,
         fullName: true,
         email: true,
+        avatarUrl: true,
         role: true,
         isActive: true,
         createdAt: true,
@@ -48,11 +50,13 @@ export const usersRepository = {
       where: { id: userId },
       data: {
         ...(data.fullName !== undefined ? { fullName: data.fullName } : {}),
+        ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
       },
       select: {
         id: true,
         fullName: true,
         email: true,
+        avatarUrl: true,
         role: true,
         isActive: true,
         createdAt: true,

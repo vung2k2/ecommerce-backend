@@ -49,7 +49,11 @@ export const createBrandSchema = z.object({
   name: z.string().trim().min(1, 'validation.brandNameRequired').max(100).openapi({ example: 'Apple' }),
   slug: z.string().trim().min(1).max(100).optional().openapi({ example: 'apple' }),
   description: z.string().trim().optional().openapi({ example: 'Thương hiệu Apple Inc.' }),
-  logoUrl: z.string().trim().url().optional().openapi({ example: 'https://example.com/apple-logo.png' }),
+  logoUrl: z.string().trim().url().optional().openapi({
+    example:
+      'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/brands/admin-id/upload-id.png',
+    description: 'Owner-scoped temporary URL returned by POST /uploads/presign',
+  }),
 });
 registry.register('CreateBrandDto', createBrandSchema);
 
@@ -58,7 +62,11 @@ export const updateBrandSchema = z
     name: z.string().trim().min(1).max(100).optional().openapi({ example: 'Apple Updated' }),
     slug: z.string().trim().min(1).max(100).optional().openapi({ example: 'apple-updated' }),
     description: z.string().trim().nullable().optional().openapi({ example: 'Mô tả thương hiệu' }),
-    logoUrl: z.string().trim().url().nullable().optional().openapi({ example: 'https://example.com/logo.png' }),
+    logoUrl: z.string().trim().url().nullable().optional().openapi({
+      example:
+        'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/brands/admin-id/upload-id.png',
+      description: 'Owner-scoped temporary URL returned by POST /uploads/presign, or null to remove',
+    }),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'validation.updateAtLeastOneField',
@@ -74,7 +82,11 @@ export const createSpecificationItemSchema = z.object({
 });
 
 export const createImageItemSchema = z.object({
-  url: z.string().trim().min(1, 'validation.imageUrlRequired').max(500).openapi({ example: 'https://example.com/image.jpg' }),
+  url: z.string().trim().url().max(500).openapi({
+    example:
+      'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/admin-id/upload-id.jpg',
+    description: 'Owner-scoped temporary URL returned by POST /uploads/presign',
+  }),
   isThumbnail: z.boolean().default(false).openapi({ example: true }),
   displayOrder: z.number().int().default(0).openapi({ example: 0 }),
   altText: z.string().trim().max(255).optional().openapi({ example: 'Mặt trước sản phẩm' }),

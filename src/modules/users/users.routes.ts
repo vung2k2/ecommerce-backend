@@ -55,6 +55,11 @@ registry.registerPath({
       content: { 'application/json': { schema: createSuccessResponseSchema(userResponseSchema) } },
     },
     404: errorResponse(ERROR_CODES.USER_NOT_FOUND),
+    422: errorResponse([
+      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.INVALID_FILE_TYPE,
+      ERROR_CODES.FILE_SIZE_EXCEEDED,
+    ]),
   },
 });
 usersRouter.patch('/me', validateBody(updateProfileSchema), usersController.updateProfile);

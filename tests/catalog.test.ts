@@ -1,10 +1,11 @@
 import bcrypt from 'bcrypt';
 import request from 'supertest';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../src/app.js';
 import { PERMISSIONS, ROLES } from '../src/constants/index.js';
 import { prisma } from '../src/database/prisma.js';
+import { s3Service } from '../src/services/s3.service.js';
 import { jwtService } from '../src/utils/jwt.js';
 
 interface CategoryItem {
@@ -110,8 +111,10 @@ describe('Catalog & Media Domain', () => {
   let staffTokenWithoutCatalog: string;
   let customerToken: string;
   let staffWithWriteId: string;
+  let adminId: string;
 
   beforeEach(async () => {
+    vi.restoreAllMocks();
     // Dọn dẹp dữ liệu
     await prisma.auditLog.deleteMany();
     await prisma.productSpecification.deleteMany();
@@ -136,6 +139,7 @@ describe('Catalog & Media Domain', () => {
         isActive: true,
       },
     });
+    adminId = admin.id;
     adminToken = jwtService.signAccessToken({ userId: admin.id, role: admin.role });
 
     // Tạo Staff có quyền catalog:write
@@ -195,6 +199,24 @@ describe('Catalog & Media Domain', () => {
       },
     });
     customerToken = jwtService.signAccessToken({ userId: customer.id, role: customer.role });
+
+    const realPromoteTempUpload = s3Service.promoteTempUpload.bind(s3Service);
+    vi.spyOn(s3Service, 'promoteTempUpload').mockImplementation((params) => {
+      const tempKey = s3Service.extractKeyFromUrl(params.url);
+      const ownerPrefix = `temp/${params.expectedFolder}/${params.ownerId}/`;
+      if (!tempKey?.startsWith(ownerPrefix)) {
+        return realPromoteTempUpload(params);
+      }
+
+      const fileName = tempKey.slice(ownerPrefix.length);
+      const fileKey = `${params.expectedFolder}/${fileName}`;
+      return Promise.resolve({
+        fileKey,
+        tempKey,
+        fileUrl: s3Service.getPublicUrl(fileKey),
+      });
+    });
+    vi.spyOn(s3Service, 'cleanupObjects').mockResolvedValue();
   });
 
   afterAll(async () => {
@@ -611,8 +633,8 @@ describe('Catalog & Media Domain', () => {
           categoryId: cat.id,
           brandId: brand.id,
           images: [
-            { url: 'https://example.com/ipad1.jpg', isThumbnail: true, displayOrder: 0 },
-            { url: 'https://example.com/ipad2.jpg', isThumbnail: true, displayOrder: 1 },
+            { url: `https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/${adminId}/11111111-1111-4111-8111-111111111111.jpg`, isThumbnail: true, displayOrder: 0 },
+            { url: `https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/${adminId}/22222222-2222-4222-8222-222222222222.jpg`, isThumbnail: true, displayOrder: 1 },
           ],
           specifications: [
             { name: 'Chip', value: 'Apple M4', displayOrder: 0 },
@@ -760,6 +782,56 @@ describe('Catalog & Media Domain', () => {
       expect(deleteAgainRes.status).toBe(404);
       const parsedErr = errorResponseSchema.parse(deleteAgainRes.body);
       expect(parsedErr.error.code).toBe('SPECIFICATION_NOT_FOUND');
+    });
+
+    it('manages product images and rejects invalid S3 image URLs', async () => {
+      const cat = await prisma.category.create({
+        data: { name: 'Màn hình test', slug: 'man-hinh-test' },
+      });
+      const product = await prisma.product.create({
+        data: { name: 'Màn hình 4K', slug: 'man-hinh-4k', categoryId: cat.id },
+      });
+
+      // 1. Thêm ảnh với URL lạ -> 422 INVALID_IMAGE_URL
+      const invalidUrlRes = await request(app)
+        .post('/api/v1/admin/images')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          productId: product.id,
+          url: 'https://evil.com/img.jpg',
+        });
+      expect(invalidUrlRes.status).toBe(422);
+      const parsedInvalid = errorResponseSchema.parse(invalidUrlRes.body);
+      expect(parsedInvalid.error.code).toBe('INVALID_IMAGE_URL');
+
+      // 2. Thêm ảnh với URL S3 hợp lệ -> 201
+      const permanentUrlRes = await request(app)
+        .post('/api/v1/admin/images')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          productId: product.id,
+          url: 'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/products/shared.jpg',
+        });
+      expect(permanentUrlRes.status).toBe(422);
+
+      const validUrlRes = await request(app)
+        .post('/api/v1/admin/images')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          productId: product.id,
+          url: `https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/${adminId}/33333333-3333-4333-8333-333333333333.jpg`,
+          isThumbnail: true,
+        });
+      expect(validUrlRes.status).toBe(201);
+      const imageId = (validUrlRes.body as { data: { image: { id: string } } }).data.image.id;
+
+      // 3. Xóa ảnh -> 200
+      const deleteRes = await request(app)
+        .delete(`/api/v1/admin/images/${imageId}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(deleteRes.status).toBe(200);
+      const parsedDelete = successMessageResponseSchema.parse(deleteRes.body);
+      expect(parsedDelete.data.message).toBe('Product image deleted successfully');
     });
   });
 });

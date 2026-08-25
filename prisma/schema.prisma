@@ -32,6 +32,7 @@ model User {
   email         String           @unique @db.VarChar(255)
   passwordHash  String           @map("password_hash") @db.VarChar(255)
   fullName      String           @map("full_name") @db.VarChar(100)
+  avatarUrl     String?          @map("avatar_url") @db.VarChar(500)
   role          Role             @default(CUSTOMER)
   isActive      Boolean          @default(true) @map("is_active")
   createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)

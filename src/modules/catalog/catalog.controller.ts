@@ -170,7 +170,7 @@ export const catalogController = {
   // ==================== Image Handlers ====================
 
   createImage: (async (req, res) => {
-    const image = await catalogService.createImage(req.body);
+    const image = await catalogService.createImage(req.body, req.user?.userId);
     return sendSuccess(res, { image }, 201);
   }) as RequestHandler<unknown, unknown, CreateProductImageDto>,
 
