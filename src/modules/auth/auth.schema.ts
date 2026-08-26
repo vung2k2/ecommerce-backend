@@ -37,14 +37,14 @@ export const loginSchema = z.object({
     .trim()
     .toLowerCase()
     .pipe(z.email().max(255))
-    .openapi({ example: 'alice@example.com' }),
+    .openapi({ example: 'admin@gmail.com' }),
   password: z
     .string()
     .min(8, 'validation.passwordMin8')
     .refine((password) => Buffer.byteLength(password, 'utf8') <= 72, {
       message: 'validation.passwordMax72Bytes',
     })
-    .openapi({ example: 'password123' }),
+    .openapi({ example: 'Admin@123' }),
 });
 
 registry.register('LoginDto', loginSchema);
