@@ -1,5 +1,3 @@
-
-
 export const enMessages = {
   'errors.unauthorized': 'Authentication is required',
   'errors.forbidden': 'You do not have permission to perform this action',
@@ -11,7 +9,8 @@ export const enMessages = {
   'errors.invalidCredentials': 'Email or password is incorrect',
   'errors.inactiveAccount': 'This account has been deactivated',
   'errors.invalidRefreshToken': 'Refresh token is invalid or expired',
-  'errors.tokenReuseDetected': 'Security alert: Refresh token reuse was detected. Please log in again.',
+  'errors.tokenReuseDetected':
+    'Security alert: Refresh token reuse was detected. Please log in again.',
   'errors.userNotFound': 'User not found',
   'errors.staffNotFound': 'Staff account not found',
   'errors.addressNotFound': 'Address not found',
@@ -33,14 +32,15 @@ export const enMessages = {
   'errors.specNotFound': 'Product specification not found',
   'errors.inventoryNotFound': 'Inventory not found',
   'errors.insufficientStock': 'Insufficient stock available for this product variant',
-  'errors.invalidStockAdjustment': 'Cannot adjust on-hand stock below the currently reserved quantity',
-  'errors.invalidStockOperation': 'The requested stock operation is not valid for the current reservation',
+  'errors.invalidStockAdjustment':
+    'Cannot adjust on-hand stock below the currently reserved quantity',
+  'errors.invalidStockOperation':
+    'The requested stock operation is not valid for the current reservation',
   'errors.stockEventConflict': 'This stock event was already recorded with different data',
   'errors.stockHistoryExists': 'A product or variant with stock history cannot be deleted',
   'errors.invalidFileType': 'Invalid file type for this upload purpose',
   'errors.fileSizeExceeded': 'File size exceeds the maximum allowed limit',
-  'errors.unsupportedUploadPurpose': 'Unsupported upload purpose',
-  'errors.invalidImageUrl': 'Invalid image URL or unsupported storage path',
+  'errors.fileRequired': 'An image file is required',
   'validation.bodyInvalid': 'Request body is invalid',
   'validation.paramsInvalid': 'Request params are invalid',
   'validation.queryInvalid': 'Request query is invalid',
@@ -78,10 +78,6 @@ export const enMessages = {
   'validation.restockReasonRequired': 'Reason for restocking is required',
   'validation.onHandNonNegative': 'On-hand stock must be greater than or equal to 0',
   'validation.adjustmentReasonRequired': 'Reason for stock adjustment is required',
-  'validation.purposeRequired': 'Upload purpose is required',
-  'validation.fileNameRequired': 'File name is required',
-  'validation.mimeTypeRequired': 'MIME type is required',
-  'validation.fileSizePositive': 'File size must be greater than 0',
   'success.loggedOut': 'Logged out successfully',
   'success.loggedOutAll': 'Logged out from all devices successfully',
   'success.addressDeleted': 'Address deleted successfully',

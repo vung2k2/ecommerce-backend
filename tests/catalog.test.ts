@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createApp } from '../src/app.js';
 import { PERMISSIONS, ROLES } from '../src/constants/index.js';
 import { prisma } from '../src/database/prisma.js';
+import { uploadsService } from '../src/modules/uploads/uploads.service.js';
 import { s3Service } from '../src/services/s3.service.js';
 import { jwtService } from '../src/utils/jwt.js';
 
@@ -59,7 +60,9 @@ const productItemSchema = z.object({
   brand: z.object({ id: z.string(), name: z.string(), slug: z.string() }).nullable().optional(),
   images: z.array(z.object({ url: z.string(), isThumbnail: z.boolean().optional() })).optional(),
   specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
-  variants: z.array(z.object({ id: z.string(), sku: z.string(), name: z.string(), price: z.string() })).optional(),
+  variants: z
+    .array(z.object({ id: z.string(), sku: z.string(), name: z.string(), price: z.string() }))
+    .optional(),
 });
 
 const productListResponseSchema = z.object({
@@ -111,7 +114,6 @@ describe('Catalog & Media Domain', () => {
   let staffTokenWithoutCatalog: string;
   let customerToken: string;
   let staffWithWriteId: string;
-  let adminId: string;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
@@ -139,7 +141,6 @@ describe('Catalog & Media Domain', () => {
         isActive: true,
       },
     });
-    adminId = admin.id;
     adminToken = jwtService.signAccessToken({ userId: admin.id, role: admin.role });
 
     // Tạo Staff có quyền catalog:write
@@ -156,7 +157,10 @@ describe('Catalog & Media Domain', () => {
       },
     });
     staffWithWriteId = staffWrite.id;
-    staffTokenWithWrite = jwtService.signAccessToken({ userId: staffWrite.id, role: staffWrite.role });
+    staffTokenWithWrite = jwtService.signAccessToken({
+      userId: staffWrite.id,
+      role: staffWrite.role,
+    });
 
     // Tạo Staff chỉ có quyền catalog:read
     const staffRead = await prisma.user.create({
@@ -171,7 +175,10 @@ describe('Catalog & Media Domain', () => {
         },
       },
     });
-    staffTokenWithReadOnly = jwtService.signAccessToken({ userId: staffRead.id, role: staffRead.role });
+    staffTokenWithReadOnly = jwtService.signAccessToken({
+      userId: staffRead.id,
+      role: staffRead.role,
+    });
 
     // Tạo Staff chỉ có quyền order:read (không có catalog)
     const staffNoCatalog = await prisma.user.create({
@@ -186,7 +193,10 @@ describe('Catalog & Media Domain', () => {
         },
       },
     });
-    staffTokenWithoutCatalog = jwtService.signAccessToken({ userId: staffNoCatalog.id, role: staffNoCatalog.role });
+    staffTokenWithoutCatalog = jwtService.signAccessToken({
+      userId: staffNoCatalog.id,
+      role: staffNoCatalog.role,
+    });
 
     // Tạo Customer
     const customer = await prisma.user.create({
@@ -200,21 +210,12 @@ describe('Catalog & Media Domain', () => {
     });
     customerToken = jwtService.signAccessToken({ userId: customer.id, role: customer.role });
 
-    const realPromoteTempUpload = s3Service.promoteTempUpload.bind(s3Service);
-    vi.spyOn(s3Service, 'promoteTempUpload').mockImplementation((params) => {
-      const tempKey = s3Service.extractKeyFromUrl(params.url);
-      const ownerPrefix = `temp/${params.expectedFolder}/${params.ownerId}/`;
-      if (!tempKey?.startsWith(ownerPrefix)) {
-        return realPromoteTempUpload(params);
-      }
-
-      const fileName = tempKey.slice(ownerPrefix.length);
-      const fileKey = `${params.expectedFolder}/${fileName}`;
-      return Promise.resolve({
-        fileKey,
-        tempKey,
-        fileUrl: s3Service.getPublicUrl(fileKey),
-      });
+    let uploadSequence = 0;
+    vi.spyOn(uploadsService, 'storeImage').mockImplementation((_file, purpose) => {
+      uploadSequence += 1;
+      const folder = purpose === 'BRAND_LOGO' ? 'brands' : 'products';
+      const fileKey = `${folder}/test-${uploadSequence}.jpg`;
+      return Promise.resolve({ fileKey, fileUrl: s3Service.getPublicUrl(fileKey) });
     });
     vi.spyOn(s3Service, 'cleanupObjects').mockResolvedValue();
   });
@@ -302,7 +303,13 @@ describe('Catalog & Media Domain', () => {
         },
       });
       await prisma.productVariant.create({
-        data: { productId: p1.id, sku: 'MBP-ACTIVE', name: 'Active', price: 30000000n, isActive: true },
+        data: {
+          productId: p1.id,
+          sku: 'MBP-ACTIVE',
+          name: 'Active',
+          price: 30000000n,
+          isActive: true,
+        },
       });
 
       // Product 2: ACTIVE but with NO active variant -> MUST BE EXCLUDED
@@ -316,7 +323,13 @@ describe('Catalog & Media Domain', () => {
         },
       });
       await prisma.productVariant.create({
-        data: { productId: p2.id, sku: 'MBP-INACTIVE-VAR', name: 'Inactive', price: 30000000n, isActive: false },
+        data: {
+          productId: p2.id,
+          sku: 'MBP-INACTIVE-VAR',
+          name: 'Inactive',
+          price: 30000000n,
+          isActive: false,
+        },
       });
 
       // Product 3: DRAFT with active variant -> MUST BE EXCLUDED
@@ -330,7 +343,13 @@ describe('Catalog & Media Domain', () => {
         },
       });
       await prisma.productVariant.create({
-        data: { productId: p3.id, sku: 'MBP-DRAFT', name: 'Draft', price: 30000000n, isActive: true },
+        data: {
+          productId: p3.id,
+          sku: 'MBP-DRAFT',
+          name: 'Draft',
+          price: 30000000n,
+          isActive: true,
+        },
       });
 
       const res = await request(app).get('/api/v1/products');
@@ -383,7 +402,13 @@ describe('Catalog & Media Domain', () => {
         },
       });
       await prisma.productVariant.create({
-        data: { productId: p2.id, sku: 'DELL-25M', name: 'Gaming Base', price: 25000000n, isActive: true },
+        data: {
+          productId: p2.id,
+          sku: 'DELL-25M',
+          name: 'Gaming Base',
+          price: 25000000n,
+          isActive: true,
+        },
       });
 
       // Filter by root category "may-tinh" (should recursively find product in L3)
@@ -613,7 +638,31 @@ describe('Catalog & Media Domain', () => {
       expect(parsed.error.code).toBe('CATEGORY_CYCLIC_HIERARCHY');
     });
 
-    it('creates full product and guarantees single thumbnail invariant', async () => {
+    it('uploads and removes a brand logo through the brand domain API', async () => {
+      const brand = await prisma.brand.create({ data: { name: 'Logitech', slug: 'logitech' } });
+
+      const uploadResponse = await request(app)
+        .put(`/api/v1/admin/brands/${brand.id}/logo`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xe0]), {
+          filename: 'logo.jpg',
+          contentType: 'image/jpeg',
+        });
+      expect(uploadResponse.status).toBe(200);
+      expect(
+        (uploadResponse.body as { data: { brand: { logoUrl: string } } }).data.brand.logoUrl,
+      ).toContain('/brands/test-1.jpg');
+
+      const deleteResponse = await request(app)
+        .delete(`/api/v1/admin/brands/${brand.id}/logo`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(deleteResponse.status).toBe(200);
+      expect(
+        (deleteResponse.body as { data: { brand: { logoUrl: null } } }).data.brand.logoUrl,
+      ).toBeNull();
+    });
+
+    it('creates a product, then uploads images while preserving one thumbnail', async () => {
       const cat = await prisma.category.create({
         data: { name: 'Tablet', slug: 'tablet' },
       });
@@ -632,13 +681,7 @@ describe('Catalog & Media Domain', () => {
           status: 'ACTIVE',
           categoryId: cat.id,
           brandId: brand.id,
-          images: [
-            { url: `https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/${adminId}/11111111-1111-4111-8111-111111111111.jpg`, isThumbnail: true, displayOrder: 0 },
-            { url: `https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/${adminId}/22222222-2222-4222-8222-222222222222.jpg`, isThumbnail: true, displayOrder: 1 },
-          ],
-          specifications: [
-            { name: 'Chip', value: 'Apple M4', displayOrder: 0 },
-          ],
+          specifications: [{ name: 'Chip', value: 'Apple M4', displayOrder: 0 }],
           variants: [
             {
               sku: 'IPAD-M4-256-WIFI',
@@ -654,6 +697,18 @@ describe('Catalog & Media Domain', () => {
       expect(parsed.data.product.name).toBe('iPad Pro 11 M4');
       expect(parsed.data.product.variants?.length).toBe(1);
       expect(parsed.data.product.variants?.[0]?.sku).toBe('IPAD-M4-256-WIFI');
+
+      for (const fileName of ['front.jpg', 'back.jpg']) {
+        const uploadResponse = await request(app)
+          .post(`/api/v1/admin/products/${parsed.data.product.id}/images`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .field('isThumbnail', 'true')
+          .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xe0]), {
+            filename: fileName,
+            contentType: 'image/jpeg',
+          });
+        expect(uploadResponse.status).toBe(201);
+      }
 
       // Kiểm tra DB chỉ có 1 ảnh duy nhất có isThumbnail = true
       const thumbnails = await prisma.productImage.findMany({
@@ -691,9 +746,7 @@ describe('Catalog & Media Domain', () => {
           slug: 'phone-2',
           categoryId: cat.id,
           brandId: brand.id,
-          variants: [
-            { sku: 'DUPLICATE-SKU', name: 'V2', price: 2000 },
-          ],
+          variants: [{ sku: 'DUPLICATE-SKU', name: 'V2', price: 2000 }],
         });
 
       expect(res.status).toBe(409);
@@ -709,12 +762,11 @@ describe('Catalog & Media Domain', () => {
         data: { name: 'Cáp sạc Type-C', slug: 'cap-sac-type-c', categoryId: cat.id },
       });
 
-      // 1. Tạo variant
+      // 1. Tạo variant qua nested endpoint
       const createRes = await request(app)
-        .post('/api/v1/admin/variants')
+        .post(`/api/v1/admin/products/${product.id}/variants`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          productId: product.id,
           sku: 'CABLE-1M-WHITE',
           name: 'Dài 1m Màu Trắng',
           price: 250000,
@@ -747,7 +799,7 @@ describe('Catalog & Media Domain', () => {
       expect(checkDb).toBeNull();
     });
 
-    it('manages specifications and returns SPECIFICATION_NOT_FOUND when deleting non-existent spec', async () => {
+    it('manages specifications (Create, Update, Delete) and returns SPECIFICATION_NOT_FOUND', async () => {
       const cat = await prisma.category.create({
         data: { name: 'Chuột', slug: 'chuot' },
       });
@@ -755,19 +807,31 @@ describe('Catalog & Media Domain', () => {
         data: { name: 'Chuột Gaming', slug: 'chuot-gaming', categoryId: cat.id },
       });
 
-      // 1. Tạo spec
+      // 1. Tạo spec qua nested endpoint
       const createRes = await request(app)
-        .post('/api/v1/admin/specifications')
+        .post(`/api/v1/admin/products/${product.id}/specifications`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          productId: product.id,
           name: 'DPI',
           value: '16000',
         });
       expect(createRes.status).toBe(201);
       const specId = (createRes.body as { data: { spec: { id: string } } }).data.spec.id;
 
-      // 2. Xóa spec thành công
+      // 2. Cập nhật spec
+      const patchRes = await request(app)
+        .patch(`/api/v1/admin/specifications/${specId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          value: '20000',
+          displayOrder: 1,
+        });
+      expect(patchRes.status).toBe(200);
+      const patchBody = patchRes.body as { data: { spec: { value: string; displayOrder: number } } };
+      expect(patchBody.data.spec.value).toBe('20000');
+      expect(patchBody.data.spec.displayOrder).toBe(1);
+
+      // 3. Xóa spec thành công
       const deleteRes = await request(app)
         .delete(`/api/v1/admin/specifications/${specId}`)
         .set('Authorization', `Bearer ${adminToken}`);
@@ -775,7 +839,7 @@ describe('Catalog & Media Domain', () => {
       const parsedDelete = successMessageResponseSchema.parse(deleteRes.body);
       expect(parsedDelete.data.message).toBe('Specification deleted successfully');
 
-      // 3. Xóa lại spec đã xóa -> 404 SPECIFICATION_NOT_FOUND
+      // 4. Xóa lại spec đã xóa -> 404 SPECIFICATION_NOT_FOUND
       const deleteAgainRes = await request(app)
         .delete(`/api/v1/admin/specifications/${specId}`)
         .set('Authorization', `Bearer ${adminToken}`);
@@ -784,7 +848,7 @@ describe('Catalog & Media Domain', () => {
       expect(parsedErr.error.code).toBe('SPECIFICATION_NOT_FOUND');
     });
 
-    it('manages product images and rejects invalid S3 image URLs', async () => {
+    it('manages product images through multipart upload and updates metadata', async () => {
       const cat = await prisma.category.create({
         data: { name: 'Màn hình test', slug: 'man-hinh-test' },
       });
@@ -792,40 +856,43 @@ describe('Catalog & Media Domain', () => {
         data: { name: 'Màn hình 4K', slug: 'man-hinh-4k', categoryId: cat.id },
       });
 
-      // 1. Thêm ảnh với URL lạ -> 422 INVALID_IMAGE_URL
-      const invalidUrlRes = await request(app)
-        .post('/api/v1/admin/images')
+      // Multipart upload requires a file before metadata can be processed.
+      const missingFileResponse = await request(app)
+        .post(`/api/v1/admin/products/${product.id}/images`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .field('isThumbnail', 'true');
+      expect(missingFileResponse.status).toBe(422);
+      expect(errorResponseSchema.parse(missingFileResponse.body).error.code).toBe('FILE_REQUIRED');
+
+      // 2. Thêm ảnh với file hợp lệ -> 201
+      const validUploadResponse = await request(app)
+        .post(`/api/v1/admin/products/${product.id}/images`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .field('isThumbnail', 'true')
+        .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xe0]), {
+          filename: 'monitor.jpg',
+          contentType: 'image/jpeg',
+        });
+      expect(validUploadResponse.status).toBe(201);
+      const imageId = (validUploadResponse.body as { data: { image: { id: string } } }).data.image
+        .id;
+
+      // 3. Cập nhật metadata ảnh (PATCH) -> 200
+      const patchImgRes = await request(app)
+        .patch(`/api/v1/admin/images/${imageId}`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          productId: product.id,
-          url: 'https://evil.com/img.jpg',
+          altText: 'Mặt trước màn hình 4K',
+          displayOrder: 5,
         });
-      expect(invalidUrlRes.status).toBe(422);
-      const parsedInvalid = errorResponseSchema.parse(invalidUrlRes.body);
-      expect(parsedInvalid.error.code).toBe('INVALID_IMAGE_URL');
+      expect(patchImgRes.status).toBe(200);
+      const patchImgBody = patchImgRes.body as {
+        data: { image: { altText: string; displayOrder: number } };
+      };
+      expect(patchImgBody.data.image.altText).toBe('Mặt trước màn hình 4K');
+      expect(patchImgBody.data.image.displayOrder).toBe(5);
 
-      // 2. Thêm ảnh với URL S3 hợp lệ -> 201
-      const permanentUrlRes = await request(app)
-        .post('/api/v1/admin/images')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          productId: product.id,
-          url: 'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/products/shared.jpg',
-        });
-      expect(permanentUrlRes.status).toBe(422);
-
-      const validUrlRes = await request(app)
-        .post('/api/v1/admin/images')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          productId: product.id,
-          url: `https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/${adminId}/33333333-3333-4333-8333-333333333333.jpg`,
-          isThumbnail: true,
-        });
-      expect(validUrlRes.status).toBe(201);
-      const imageId = (validUrlRes.body as { data: { image: { id: string } } }).data.image.id;
-
-      // 3. Xóa ảnh -> 200
+      // 4. Xóa ảnh -> 200
       const deleteRes = await request(app)
         .delete(`/api/v1/admin/images/${imageId}`)
         .set('Authorization', `Bearer ${adminToken}`);

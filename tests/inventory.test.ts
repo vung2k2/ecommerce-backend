@@ -407,10 +407,9 @@ describe('Inventory & Stock Movement Domain', () => {
 
     it('creates inventory with a new variant and keeps inventory GET free of writes', async () => {
       const createResponse = await request(app)
-        .post('/api/v1/admin/variants')
+        .post(`/api/v1/admin/products/${testProduct.id}/variants`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          productId: testProduct.id,
           sku: 'MBP16-M3-48-1TB',
           name: 'MacBook Pro 16 48GB 1TB Space Black',
           price: '89990000',

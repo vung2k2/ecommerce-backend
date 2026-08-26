@@ -1,72 +1,72 @@
 import { randomUUID } from 'node:crypto';
-import { ERROR_CODES, ROLES } from '../../constants/index.js';
-import { s3Service, type PresignedUploadResult } from '../../services/s3.service.js';
+import { ERROR_CODES, type UploadPurpose } from '../../constants/index.js';
+import { s3Service } from '../../services/s3.service.js';
 import { AppError } from '../../utils/app-error.js';
-import type { AccessTokenPayload } from '../../utils/jwt.js';
 import { MIME_EXTENSION_MAP, UPLOAD_POLICIES } from './uploads.policy.js';
-import { uploadsRepository } from './uploads.repository.js';
-import type { PresignUploadDto } from './uploads.schema.js';
 
-export interface GeneratePresignedUrlInput {
-  user: AccessTokenPayload;
-  dto: PresignUploadDto;
+export interface ImageFile {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
 }
 
-export class UploadsService {
-  async generatePresignedUploadUrl(
-    input: GeneratePresignedUrlInput,
-  ): Promise<PresignedUploadResult> {
-    const { user, dto } = input;
-    const policy = UPLOAD_POLICIES[dto.purpose];
+export interface StoredImage {
+  fileKey: string;
+  fileUrl: string;
+}
 
-    if (!policy) {
-      throw new AppError(400, ERROR_CODES.UNSUPPORTED_UPLOAD_PURPOSE);
-    }
+function hasImageSignature(buffer: Buffer, mimeType: string): boolean {
+  if (mimeType === 'image/jpeg') {
+    return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  }
 
-    const dbUser = await uploadsRepository.findActorById(user.userId);
+  if (mimeType === 'image/png') {
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    return signature.every((value, index) => buffer[index] === value);
+  }
 
-    if (!dbUser || !dbUser.isActive) {
-      throw new AppError(403, ERROR_CODES.INACTIVE_ACCOUNT);
-    }
+  if (mimeType === 'image/webp') {
+    return (
+      buffer.length >= 12 &&
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+    );
+  }
 
-    if (policy.requiredPermission) {
-      if (dbUser.role === ROLES.CUSTOMER) {
-        throw new AppError(403, ERROR_CODES.FORBIDDEN);
-      }
+  return false;
+}
 
-      if (dbUser.role === ROLES.STAFF) {
-        const hasPermission = dbUser.permissions.some(
-          (item) => item.permission === policy.requiredPermission,
-        );
-        if (!hasPermission) {
-          throw new AppError(403, ERROR_CODES.FORBIDDEN);
-        }
-      }
-    }
+export const uploadsService = {
+  async storeImage(file: ImageFile, purpose: UploadPurpose, ownerId: string): Promise<StoredImage> {
+    const policy = UPLOAD_POLICIES[purpose];
+    const mimeType = file.mimetype.toLowerCase().trim();
 
-    const normalizedMimeType = dto.mimeType.toLowerCase().trim();
-    if (!policy.allowedMimeTypes.includes(normalizedMimeType)) {
+    if (!policy.allowedMimeTypes.includes(mimeType) || !hasImageSignature(file.buffer, mimeType)) {
       throw new AppError(422, ERROR_CODES.INVALID_FILE_TYPE);
     }
 
-    if (dto.fileSize > policy.maxSizeBytes) {
+    if (file.size <= 0 || file.size > policy.maxSizeBytes) {
       throw new AppError(422, ERROR_CODES.FILE_SIZE_EXCEEDED);
     }
 
-    const extension = MIME_EXTENSION_MAP[normalizedMimeType as keyof typeof MIME_EXTENSION_MAP];
+    const extension = MIME_EXTENSION_MAP[mimeType as keyof typeof MIME_EXTENSION_MAP];
     if (!extension) {
       throw new AppError(422, ERROR_CODES.INVALID_FILE_TYPE);
     }
 
-    const fileKey = `temp/${policy.folder}/${dbUser.id}/${randomUUID()}${extension}`;
+    const uploadId = randomUUID();
+    const tempKey = `temp/${policy.folder}/${ownerId}/${uploadId}${extension}`;
+    const fileKey = `${policy.folder}/${uploadId}${extension}`;
 
-    return s3Service.generatePresignedUploadUrl({
-      key: fileKey,
-      mimeType: normalizedMimeType,
-      fileSize: dto.fileSize,
-      expiresInSeconds: 600,
-    });
-  }
-}
+    try {
+      await s3Service.putObject(tempKey, file.buffer, mimeType);
+      await s3Service.copyObject(tempKey, fileKey);
+    } catch (error) {
+      await s3Service.cleanupObjects([tempKey, fileKey]);
+      throw error;
+    }
 
-export const uploadsService = new UploadsService();
+    await s3Service.cleanupObjects([tempKey]);
+    return { fileKey, fileUrl: s3Service.getPublicUrl(fileKey) };
+  },
+};

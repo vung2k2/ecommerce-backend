@@ -51,8 +51,7 @@ const errorMessageKeys = {
   [ERROR_CODES.STOCK_HISTORY_EXISTS]: 'errors.stockHistoryExists',
   [ERROR_CODES.INVALID_FILE_TYPE]: 'errors.invalidFileType',
   [ERROR_CODES.FILE_SIZE_EXCEEDED]: 'errors.fileSizeExceeded',
-  [ERROR_CODES.UNSUPPORTED_UPLOAD_PURPOSE]: 'errors.unsupportedUploadPurpose',
-  [ERROR_CODES.INVALID_IMAGE_URL]: 'errors.invalidImageUrl',
+  [ERROR_CODES.FILE_REQUIRED]: 'errors.fileRequired',
 } as const satisfies Record<ErrorCode, MessageKey>;
 
 function interpolate(message: string, params: TranslationParams): string {

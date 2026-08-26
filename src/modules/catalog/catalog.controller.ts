@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { translate } from '../../i18n/index.js';
 import { sendPaginated, sendSuccess } from '../../utils/response.js';
+import { getUploadedImage } from '../uploads/uploads.middleware.js';
 import type {
   AdminListProductsQueryDto,
   BrandIdParamDto,
@@ -21,6 +22,8 @@ import type {
   UpdateBrandDto,
   UpdateCategoryDto,
   UpdateProductDto,
+  UpdateProductImageDto,
+  UpdateProductSpecDto,
   UpdateVariantDto,
   VariantIdParamDto,
 } from './catalog.schema.js';
@@ -97,6 +100,20 @@ export const catalogController = {
     return sendSuccess(res, { brand });
   }) as RequestHandler<BrandIdParamDto, unknown, UpdateBrandDto>,
 
+  updateBrandLogo: (async (req, res) => {
+    const brand = await catalogService.updateBrandLogo(
+      req.params.id,
+      getUploadedImage(req.file),
+      req.user.userId,
+    );
+    return sendSuccess(res, { brand }, 200);
+  }) as RequestHandler<BrandIdParamDto>,
+
+  deleteBrandLogo: (async (req, res) => {
+    const brand = await catalogService.deleteBrandLogo(req.params.id, req.user.userId);
+    return sendSuccess(res, { brand }, 200);
+  }) as RequestHandler<BrandIdParamDto>,
+
   deleteBrand: (async (req, res) => {
     const { id } = req.params;
     await catalogService.deleteBrand(id, req.user?.userId);
@@ -151,9 +168,10 @@ export const catalogController = {
   // ==================== Variant Handlers ====================
 
   createVariant: (async (req, res) => {
-    const variant = await catalogService.createVariant(req.body, req.user?.userId);
+    const { id } = req.params;
+    const variant = await catalogService.createVariant(id, req.body, req.user?.userId);
     return sendSuccess(res, { variant }, 201);
-  }) as RequestHandler<unknown, unknown, CreateVariantDto>,
+  }) as RequestHandler<ProductIdParamDto, unknown, CreateVariantDto>,
 
   updateVariant: (async (req, res) => {
     const { id } = req.params;
@@ -170,9 +188,20 @@ export const catalogController = {
   // ==================== Image Handlers ====================
 
   createImage: (async (req, res) => {
-    const image = await catalogService.createImage(req.body, req.user?.userId);
+    const image = await catalogService.createImage(
+      req.params.id,
+      req.body,
+      getUploadedImage(req.file),
+      req.user.userId,
+    );
     return sendSuccess(res, { image }, 201);
-  }) as RequestHandler<unknown, unknown, CreateProductImageDto>,
+  }) as RequestHandler<ProductIdParamDto, unknown, CreateProductImageDto>,
+
+  updateImage: (async (req, res) => {
+    const { id } = req.params;
+    const image = await catalogService.updateImage(id, req.body);
+    return sendSuccess(res, { image });
+  }) as RequestHandler<ImageIdParamDto, unknown, UpdateProductImageDto>,
 
   deleteImage: (async (req, res) => {
     const { id } = req.params;
@@ -183,9 +212,16 @@ export const catalogController = {
   // ==================== Spec Handlers ====================
 
   createSpec: (async (req, res) => {
-    const spec = await catalogService.createSpec(req.body);
+    const { id } = req.params;
+    const spec = await catalogService.createSpec(id, req.body);
     return sendSuccess(res, { spec }, 201);
-  }) as RequestHandler<unknown, unknown, CreateProductSpecDto>,
+  }) as RequestHandler<ProductIdParamDto, unknown, CreateProductSpecDto>,
+
+  updateSpec: (async (req, res) => {
+    const { id } = req.params;
+    const spec = await catalogService.updateSpec(id, req.body);
+    return sendSuccess(res, { spec });
+  }) as RequestHandler<SpecIdParamDto, unknown, UpdateProductSpecDto>,
 
   deleteSpec: (async (req, res) => {
     const { id } = req.params;

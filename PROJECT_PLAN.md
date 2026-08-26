@@ -194,9 +194,9 @@ Acceptance criteria:
 - [x] Danh sách sản phẩm hỗ trợ pagination, keyword, category, brand, khoảng giá, specification và sort.
 - [x] Chi tiết sản phẩm được truy cập bằng slug duy nhất.
 - [x] Thêm database index dựa trên query thực tế.
-- [x] Tạo S3 presigned upload URL cho admin và người dùng với cơ chế purpose và thư mục temp/ lưu tạm.
-- [x] Chỉ lưu metadata/object key hợp lệ sau upload.
-- [ ] Cấu hình S3 lifecycle tự xóa object chưa commit trong `temp/` sau một ngày.
+- [x] Nhận ảnh qua multipart API tại đúng domain, validate tại backend và lưu tạm trong thư mục `temp/` trước khi promote.
+- [x] Chỉ lưu URL/object key do backend tạo sau khi upload hợp lệ.
+- [x] Cấu hình S3 lifecycle tự xóa object chưa commit trong `temp/` sau một ngày.
 - [ ] Cache danh sách và chi tiết catalog phổ biến bằng Redis.
 - [ ] Invalidate cache khi admin cập nhật dữ liệu liên quan.
 
@@ -208,7 +208,7 @@ Acceptance criteria:
 - SKU, slug và quan hệ catalog được bảo vệ bằng database unique constraint.
 - User thường không thể upload hoặc thay đổi catalog (yêu cầu permission `catalog:write`).
 - Cache Redis cho catalog tự động invalidate khi admin/staff cập nhật dữ liệu liên quan và không trả dữ liệu cũ.
-- Ứng dụng không giữ AWS access key trong source code hoặc Docker image (dùng S3 presigned URL).
+- Ứng dụng không giữ AWS access key trong source code hoặc Docker image; production dùng EC2 IAM role với quyền S3 tối thiểu.
 
 ### 5.4. Tồn kho
 
@@ -389,11 +389,22 @@ GET    /api/v1/products/:productId/reviews
 POST   /api/v1/products/:productId/reviews
 
 ...    /api/v1/admin/products
-...    /api/v1/admin/variants
+POST   /api/v1/admin/products/:productId/variants
+PATCH  /api/v1/admin/variants/:id
+DELETE /api/v1/admin/variants/:id
+POST   /api/v1/admin/products/:productId/images
+PATCH  /api/v1/admin/images/:id
+DELETE /api/v1/admin/images/:id
+POST   /api/v1/admin/products/:productId/specifications
+PATCH  /api/v1/admin/specifications/:id
+DELETE /api/v1/admin/specifications/:id
 ...    /api/v1/admin/inventory
 ...    /api/v1/admin/coupons
 ...    /api/v1/admin/orders
-POST   /api/v1/uploads/presign
+PUT    /api/v1/users/me/avatar
+DELETE /api/v1/users/me/avatar
+PUT    /api/v1/admin/brands/:brandId/logo
+DELETE /api/v1/admin/brands/:brandId/logo
 GET    /api/v1/admin/staff
 POST   /api/v1/admin/staff
 PATCH  /api/v1/admin/staff/:id

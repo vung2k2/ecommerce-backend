@@ -1,11 +1,15 @@
 import { Router } from 'express';
-import { ERROR_CODES, PERMISSIONS } from '../../constants/index.js';
+import { ERROR_CODES, PERMISSIONS, UPLOAD_PURPOSES } from '../../constants/index.js';
 import {
+  createPaginatedResponseSchema,
+  createSuccessResponseSchema,
   errorResponse,
   registry,
 } from '../../docs/registry.js';
 import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { requirePermission } from '../../middlewares/permission.middleware.js';
+import { uploadSingleImage } from '../uploads/uploads.middleware.js';
+import { UPLOAD_POLICIES } from '../uploads/uploads.policy.js';
 import {
   validateBody,
   validateParams,
@@ -14,6 +18,9 @@ import {
 import { catalogController } from './catalog.controller.js';
 import {
   adminListProductsQuerySchema,
+  adminProductListItemResponseSchema,
+  brandLogoUploadRequestSchema,
+  brandResponseDataSchema,
   brandIdParamSchema,
   brandSlugParamSchema,
   categoryIdParamSchema,
@@ -25,15 +32,23 @@ import {
   createProductSpecSchema,
   createVariantSchema,
   imageIdParamSchema,
+  imageUploadRequestSchema,
   listProductsQuerySchema,
   productIdParamSchema,
+  productImageResponseDataSchema,
+  productResponseDataSchema,
   productSlugParamSchema,
+  productSpecResponseDataSchema,
+  publicProductListItemResponseSchema,
   specIdParamSchema,
   updateBrandSchema,
   updateCategorySchema,
+  updateProductImageSchema,
   updateProductSchema,
+  updateProductSpecSchema,
   updateVariantSchema,
   variantIdParamSchema,
+  variantResponseDataSchema,
 } from './catalog.schema.js';
 
 export const publicCatalogRouter = Router();
@@ -124,6 +139,11 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Paginated active products list retrieved successfully',
+      content: {
+        'application/json': {
+          schema: createPaginatedResponseSchema(publicProductListItemResponseSchema),
+        },
+      },
     },
   },
 });
@@ -144,6 +164,9 @@ registry.registerPath({
   responses: {
     200: {
       description: 'Product details retrieved successfully',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productResponseDataSchema) },
+      },
     },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
   },
@@ -156,7 +179,10 @@ publicCatalogRouter.get(
 
 // ==================== Admin Routes Protection ====================
 
-adminCatalogRouter.use(requireAuth, requirePermission(PERMISSIONS.CATALOG_READ, PERMISSIONS.CATALOG_WRITE));
+adminCatalogRouter.use(
+  requireAuth,
+  requirePermission(PERMISSIONS.CATALOG_READ, PERMISSIONS.CATALOG_WRITE),
+);
 
 const requireCatalogWrite = requirePermission(PERMISSIONS.CATALOG_WRITE);
 
@@ -277,13 +303,13 @@ registry.registerPath({
     body: { content: { 'application/json': { schema: createBrandSchema } } },
   },
   responses: {
-    201: { description: 'Brand created' },
+    201: {
+      description: 'Brand created',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(brandResponseDataSchema) },
+      },
+    },
     409: errorResponse(ERROR_CODES.BRAND_SLUG_EXISTS),
-    422: errorResponse([
-      ERROR_CODES.INVALID_IMAGE_URL,
-      ERROR_CODES.INVALID_FILE_TYPE,
-      ERROR_CODES.FILE_SIZE_EXCEEDED,
-    ]),
   },
 });
 adminCatalogRouter.post(
@@ -304,14 +330,14 @@ registry.registerPath({
     body: { content: { 'application/json': { schema: updateBrandSchema } } },
   },
   responses: {
-    200: { description: 'Brand updated' },
+    200: {
+      description: 'Brand updated',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(brandResponseDataSchema) },
+      },
+    },
     404: errorResponse(ERROR_CODES.BRAND_NOT_FOUND),
     409: errorResponse(ERROR_CODES.BRAND_SLUG_EXISTS),
-    422: errorResponse([
-      ERROR_CODES.INVALID_IMAGE_URL,
-      ERROR_CODES.INVALID_FILE_TYPE,
-      ERROR_CODES.FILE_SIZE_EXCEEDED,
-    ]),
   },
 });
 adminCatalogRouter.patch(
@@ -320,6 +346,63 @@ adminCatalogRouter.patch(
   validateParams(brandIdParamSchema),
   validateBody(updateBrandSchema),
   catalogController.updateBrand,
+);
+
+registry.registerPath({
+  method: 'put',
+  path: '/admin/brands/{id}/logo',
+  summary: 'Upload or replace brand logo',
+  tags: ['Brands'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: brandIdParamSchema,
+    body: { content: { 'multipart/form-data': { schema: brandLogoUploadRequestSchema } } },
+  },
+  responses: {
+    200: {
+      description: 'Brand logo updated',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(brandResponseDataSchema) },
+      },
+    },
+    404: errorResponse(ERROR_CODES.BRAND_NOT_FOUND),
+    422: errorResponse([
+      ERROR_CODES.FILE_REQUIRED,
+      ERROR_CODES.INVALID_FILE_TYPE,
+      ERROR_CODES.FILE_SIZE_EXCEEDED,
+    ]),
+  },
+});
+adminCatalogRouter.put(
+  '/brands/:id/logo',
+  requireCatalogWrite,
+  validateParams(brandIdParamSchema),
+  uploadSingleImage(UPLOAD_POLICIES[UPLOAD_PURPOSES.BRAND_LOGO]),
+  catalogController.updateBrandLogo,
+);
+
+registry.registerPath({
+  method: 'delete',
+  path: '/admin/brands/{id}/logo',
+  summary: 'Remove brand logo',
+  tags: ['Brands'],
+  security: [{ bearerAuth: [] }],
+  request: { params: brandIdParamSchema },
+  responses: {
+    200: {
+      description: 'Brand logo removed',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(brandResponseDataSchema) },
+      },
+    },
+    404: errorResponse(ERROR_CODES.BRAND_NOT_FOUND),
+  },
+});
+adminCatalogRouter.delete(
+  '/brands/:id/logo',
+  requireCatalogWrite,
+  validateParams(brandIdParamSchema),
+  catalogController.deleteBrandLogo,
 );
 
 registry.registerPath({
@@ -352,7 +435,14 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { query: adminListProductsQuerySchema },
   responses: {
-    200: { description: 'Admin products list retrieved' },
+    200: {
+      description: 'Admin products list retrieved',
+      content: {
+        'application/json': {
+          schema: createPaginatedResponseSchema(adminProductListItemResponseSchema),
+        },
+      },
+    },
   },
 });
 adminCatalogRouter.get(
@@ -369,7 +459,12 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: productIdParamSchema },
   responses: {
-    200: { description: 'Product retrieved' },
+    200: {
+      description: 'Product retrieved',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productResponseDataSchema) },
+      },
+    },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
   },
 });
@@ -382,21 +477,21 @@ adminCatalogRouter.get(
 registry.registerPath({
   method: 'post',
   path: '/admin/products',
-  summary: 'Create new product with variants, specs and images (Admin)',
+  summary: 'Create new product with variants and specifications (Admin)',
   tags: ['Products'],
   security: [{ bearerAuth: [] }],
   request: {
     body: { content: { 'application/json': { schema: createProductSchema } } },
   },
   responses: {
-    201: { description: 'Product created' },
+    201: {
+      description: 'Product created',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productResponseDataSchema) },
+      },
+    },
     404: errorResponse([ERROR_CODES.CATEGORY_NOT_FOUND, ERROR_CODES.BRAND_NOT_FOUND]),
     409: errorResponse([ERROR_CODES.PRODUCT_SLUG_EXISTS, ERROR_CODES.PRODUCT_SKU_EXISTS]),
-    422: errorResponse([
-      ERROR_CODES.INVALID_IMAGE_URL,
-      ERROR_CODES.INVALID_FILE_TYPE,
-      ERROR_CODES.FILE_SIZE_EXCEEDED,
-    ]),
   },
 });
 adminCatalogRouter.post(
@@ -417,7 +512,12 @@ registry.registerPath({
     body: { content: { 'application/json': { schema: updateProductSchema } } },
   },
   responses: {
-    200: { description: 'Product updated' },
+    200: {
+      description: 'Product updated',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productResponseDataSchema) },
+      },
+    },
     404: errorResponse([
       ERROR_CODES.PRODUCT_NOT_FOUND,
       ERROR_CODES.CATEGORY_NOT_FOUND,
@@ -458,22 +558,29 @@ adminCatalogRouter.delete(
 
 registry.registerPath({
   method: 'post',
-  path: '/admin/variants',
+  path: '/admin/products/{id}/variants',
   summary: 'Add variant to product (Admin)',
   tags: ['Variants'],
   security: [{ bearerAuth: [] }],
   request: {
+    params: productIdParamSchema,
     body: { content: { 'application/json': { schema: createVariantSchema } } },
   },
   responses: {
-    201: { description: 'Variant created' },
+    201: {
+      description: 'Variant created',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(variantResponseDataSchema) },
+      },
+    },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
     409: errorResponse(ERROR_CODES.PRODUCT_SKU_EXISTS),
   },
 });
 adminCatalogRouter.post(
-  '/variants',
+  '/products/:id/variants',
   requireCatalogWrite,
+  validateParams(productIdParamSchema),
   validateBody(createVariantSchema),
   catalogController.createVariant,
 );
@@ -489,7 +596,12 @@ registry.registerPath({
     body: { content: { 'application/json': { schema: updateVariantSchema } } },
   },
   responses: {
-    200: { description: 'Variant updated' },
+    200: {
+      description: 'Variant updated',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(variantResponseDataSchema) },
+      },
+    },
     404: errorResponse(ERROR_CODES.VARIANT_NOT_FOUND),
     409: errorResponse(ERROR_CODES.PRODUCT_SKU_EXISTS),
   },
@@ -526,28 +638,64 @@ adminCatalogRouter.delete(
 
 registry.registerPath({
   method: 'post',
-  path: '/admin/images',
+  path: '/admin/products/{id}/images',
   summary: 'Add image to product (Admin)',
   tags: ['Images'],
   security: [{ bearerAuth: [] }],
   request: {
-    body: { content: { 'application/json': { schema: createProductImageSchema } } },
+    params: productIdParamSchema,
+    body: { content: { 'multipart/form-data': { schema: imageUploadRequestSchema } } },
   },
   responses: {
-    201: { description: 'Image created' },
+    201: {
+      description: 'Image created',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productImageResponseDataSchema) },
+      },
+    },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
     422: errorResponse([
-      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.FILE_REQUIRED,
       ERROR_CODES.INVALID_FILE_TYPE,
       ERROR_CODES.FILE_SIZE_EXCEEDED,
     ]),
   },
 });
 adminCatalogRouter.post(
-  '/images',
+  '/products/:id/images',
   requireCatalogWrite,
+  validateParams(productIdParamSchema),
+  uploadSingleImage(UPLOAD_POLICIES[UPLOAD_PURPOSES.PRODUCT_IMAGE]),
   validateBody(createProductImageSchema),
   catalogController.createImage,
+);
+
+registry.registerPath({
+  method: 'patch',
+  path: '/admin/images/{id}',
+  summary: 'Update product image metadata (Admin)',
+  tags: ['Images'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: imageIdParamSchema,
+    body: { content: { 'application/json': { schema: updateProductImageSchema } } },
+  },
+  responses: {
+    200: {
+      description: 'Image updated',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productImageResponseDataSchema) },
+      },
+    },
+    404: errorResponse(ERROR_CODES.PRODUCT_IMAGE_NOT_FOUND),
+  },
+});
+adminCatalogRouter.patch(
+  '/images/:id',
+  requireCatalogWrite,
+  validateParams(imageIdParamSchema),
+  validateBody(updateProductImageSchema),
+  catalogController.updateImage,
 );
 
 registry.registerPath({
@@ -573,23 +721,58 @@ adminCatalogRouter.delete(
 
 registry.registerPath({
   method: 'post',
-  path: '/admin/specifications',
+  path: '/admin/products/{id}/specifications',
   summary: 'Add specification to product (Admin)',
   tags: ['Specifications'],
   security: [{ bearerAuth: [] }],
   request: {
+    params: productIdParamSchema,
     body: { content: { 'application/json': { schema: createProductSpecSchema } } },
   },
   responses: {
-    201: { description: 'Specification created' },
+    201: {
+      description: 'Specification created',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productSpecResponseDataSchema) },
+      },
+    },
     404: errorResponse(ERROR_CODES.PRODUCT_NOT_FOUND),
   },
 });
 adminCatalogRouter.post(
-  '/specifications',
+  '/products/:id/specifications',
   requireCatalogWrite,
+  validateParams(productIdParamSchema),
   validateBody(createProductSpecSchema),
   catalogController.createSpec,
+);
+
+registry.registerPath({
+  method: 'patch',
+  path: '/admin/specifications/{id}',
+  summary: 'Update specification (Admin)',
+  tags: ['Specifications'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: specIdParamSchema,
+    body: { content: { 'application/json': { schema: updateProductSpecSchema } } },
+  },
+  responses: {
+    200: {
+      description: 'Specification updated',
+      content: {
+        'application/json': { schema: createSuccessResponseSchema(productSpecResponseDataSchema) },
+      },
+    },
+    404: errorResponse(ERROR_CODES.SPECIFICATION_NOT_FOUND),
+  },
+});
+adminCatalogRouter.patch(
+  '/specifications/:id',
+  requireCatalogWrite,
+  validateParams(specIdParamSchema),
+  validateBody(updateProductSpecSchema),
+  catalogController.updateSpec,
 );
 
 registry.registerPath({

@@ -1,7 +1,7 @@
 import { ERROR_CODES, UPLOAD_PURPOSES } from '../../constants/index.js';
 import { s3Service } from '../../services/s3.service.js';
 import { AppError } from '../../utils/app-error.js';
-import { UPLOAD_POLICIES } from '../uploads/uploads.policy.js';
+import { uploadsService, type ImageFile } from '../uploads/uploads.service.js';
 import { usersRepository } from './users.repository.js';
 import type { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.schema.js';
 
@@ -23,47 +23,40 @@ export const usersService = {
       throw new AppError(404, ERROR_CODES.USER_NOT_FOUND);
     }
 
-    let finalAvatarUrl: string | null | undefined;
-    let promotedAvatar: Awaited<ReturnType<typeof s3Service.promoteTempUpload>> | null = null;
+    return usersRepository.updateUser(userId, { fullName: data.fullName });
+  },
 
-    if (data.avatarUrl !== undefined) {
-      if (data.avatarUrl === null) {
-        finalAvatarUrl = null;
-      } else {
-        const policy = UPLOAD_POLICIES[UPLOAD_PURPOSES.USER_AVATAR];
-        promotedAvatar = await s3Service.promoteTempUpload({
-          url: data.avatarUrl,
-          expectedFolder: policy.folder,
-          ownerId: userId,
-          allowedMimeTypes: policy.allowedMimeTypes,
-          maxSizeBytes: policy.maxSizeBytes,
-        });
-        finalAvatarUrl = promotedAvatar.fileUrl;
-      }
+  async updateAvatar(userId: string, file: ImageFile) {
+    const user = await usersRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ERROR_CODES.USER_NOT_FOUND);
     }
+
+    const uploaded = await uploadsService.storeImage(file, UPLOAD_PURPOSES.USER_AVATAR, userId);
 
     try {
       const updatedUser = await usersRepository.updateUser(userId, {
-        fullName: data.fullName,
-        avatarUrl: finalAvatarUrl,
+        avatarUrl: uploaded.fileUrl,
       });
-
-      const oldKey =
-        data.avatarUrl !== undefined && user.avatarUrl
-          ? s3Service.extractKeyFromUrl(user.avatarUrl)
-          : null;
-      await s3Service.cleanupObjects([
-        ...(oldKey ? [oldKey] : []),
-        ...(promotedAvatar ? [promotedAvatar.tempKey] : []),
-      ]);
-
+      const oldKey = user.avatarUrl ? s3Service.extractKeyFromUrl(user.avatarUrl) : null;
+      await s3Service.cleanupObjects(oldKey ? [oldKey] : []);
       return updatedUser;
     } catch (error) {
-      if (promotedAvatar) {
-        await s3Service.cleanupObjects([promotedAvatar.fileKey]);
-      }
+      await s3Service.cleanupObjects([uploaded.fileKey]);
       throw error;
     }
+  },
+
+  async deleteAvatar(userId: string) {
+    const user = await usersRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError(404, ERROR_CODES.USER_NOT_FOUND);
+    }
+
+    const updatedUser = await usersRepository.updateUser(userId, { avatarUrl: null });
+    const oldKey = user.avatarUrl ? s3Service.extractKeyFromUrl(user.avatarUrl) : null;
+    await s3Service.cleanupObjects(oldKey ? [oldKey] : []);
+    return updatedUser;
   },
 
   async getAddresses(userId: string) {

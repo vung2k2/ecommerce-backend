@@ -28,9 +28,9 @@ describe('OpenAPI document', () => {
       [
         '/admin/brands',
         '/admin/brands/{id}',
+        '/admin/brands/{id}/logo',
         '/admin/categories',
         '/admin/categories/{id}',
-        '/admin/images',
         '/admin/images/{id}',
         '/admin/inventory',
         '/admin/inventory/{variantId}',
@@ -39,12 +39,13 @@ describe('OpenAPI document', () => {
         '/admin/inventory/{variantId}/restock',
         '/admin/products',
         '/admin/products/{id}',
-        '/admin/specifications',
+        '/admin/products/{id}/images',
+        '/admin/products/{id}/specifications',
+        '/admin/products/{id}/variants',
         '/admin/specifications/{id}',
         '/admin/staff',
         '/admin/staff/{id}',
         '/admin/staff/{id}/permissions',
-        '/admin/variants',
         '/admin/variants/{id}',
         '/auth/login',
         '/auth/logout',
@@ -58,10 +59,10 @@ describe('OpenAPI document', () => {
         '/products',
         '/products/{slug}',
         '/users/me',
+        '/users/me/avatar',
         '/users/me/addresses',
         '/users/me/addresses/{id}',
         '/users/me/addresses/{id}/default',
-        '/uploads/presign',
       ].sort(),
     );
   });
@@ -89,5 +90,41 @@ describe('OpenAPI document', () => {
     expect(body.paths?.['/auth/register']?.post?.responses?.['409']).toEqual({
       description: 'Error codes: `EMAIL_ALREADY_EXISTS`',
     });
+  });
+
+  it('documents multipart media inputs and detailed success payloads', async () => {
+    const response = await request(createApp()).get('/docs.json');
+    const body = response.body as {
+      paths?: Record<
+        string,
+        Record<
+          string,
+          {
+            requestBody?: { content?: Record<string, unknown> };
+            responses?: Record<
+              string,
+              {
+                description?: string;
+                content?: { 'application/json'?: { schema?: unknown } };
+              }
+            >;
+          }
+        >
+      >;
+    };
+
+    const avatarPut = body.paths?.['/users/me/avatar']?.['put'];
+    expect(avatarPut?.requestBody?.content).toHaveProperty('multipart/form-data');
+    expect(avatarPut?.responses?.['200']?.content?.['application/json']?.schema).toBeDefined();
+
+    const imagePost = body.paths?.['/admin/products/{id}/images']?.['post'];
+    expect(imagePost?.requestBody?.content).toHaveProperty('multipart/form-data');
+    expect(imagePost?.responses?.['201']?.content?.['application/json']?.schema).toBeDefined();
+    expect(imagePost?.responses?.['422']).toEqual({
+      description: 'Error codes: `FILE_REQUIRED`, `INVALID_FILE_TYPE`, `FILE_SIZE_EXCEEDED`',
+    });
+
+    const productPost = body.paths?.['/admin/products']?.['post'];
+    expect(productPost?.responses?.['201']?.content?.['application/json']?.schema).toBeDefined();
   });
 });

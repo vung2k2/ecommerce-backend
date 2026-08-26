@@ -1,8 +1,10 @@
 import request from 'supertest';
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../src/app.js';
 import { prisma } from '../src/database/prisma.js';
+import { uploadsService } from '../src/modules/uploads/uploads.service.js';
+import { s3Service } from '../src/services/s3.service.js';
 
 const tokenResponseSchema = z.object({
   data: z.object({
@@ -82,6 +84,12 @@ describe('Users & Address Management', () => {
   let tokenB: string;
 
   beforeEach(async () => {
+    vi.restoreAllMocks();
+    vi.spyOn(uploadsService, 'storeImage').mockResolvedValue({
+      fileKey: 'avatars/test-avatar.jpg',
+      fileUrl: s3Service.getPublicUrl('avatars/test-avatar.jpg'),
+    });
+    vi.spyOn(s3Service, 'cleanupObjects').mockResolvedValue();
     await prisma.user.deleteMany({
       where: {
         email: { in: [userA.email, userB.email] },
@@ -161,45 +169,52 @@ describe('Users & Address Management', () => {
       const parsedGet = userProfileResponseSchema.parse(profile.body as unknown);
       expect(parsedGet.data.user.fullName).toBe('Updated Alpha Name');
     });
+  });
 
-    it('rejects avatar update with foreign or invalid URL with 422 INVALID_IMAGE_URL', async () => {
+  describe('PUT/DELETE /api/v1/users/me/avatar', () => {
+    it('requires an image file', async () => {
       const res = await request(app)
-        .patch('/api/v1/users/me')
-        .set('Authorization', `Bearer ${tokenA}`)
-        .send({ avatarUrl: 'https://evil-site.com/avatars/avatar.jpg' });
+        .put('/api/v1/users/me/avatar')
+        .set('Authorization', `Bearer ${tokenA}`);
 
       expect(res.status).toBe(422);
-      const parsed = errorResponseSchema.parse(res.body as unknown);
-      expect(parsed.error.code).toBe('INVALID_IMAGE_URL');
+      expect(errorResponseSchema.parse(res.body as unknown).error.code).toBe('FILE_REQUIRED');
     });
 
-    it('rejects avatar update with wrong folder with 422 INVALID_IMAGE_URL', async () => {
+    it('rejects a non-image multipart file', async () => {
       const res = await request(app)
-        .patch('/api/v1/users/me')
+        .put('/api/v1/users/me/avatar')
         .set('Authorization', `Bearer ${tokenA}`)
-        .send({ avatarUrl: 'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/products/user/img.jpg' });
+        .attach('file', Buffer.from('plain text'), {
+          filename: 'avatar.txt',
+          contentType: 'text/plain',
+        });
 
       expect(res.status).toBe(422);
-      const parsed = errorResponseSchema.parse(res.body as unknown);
-      expect(parsed.error.code).toBe('INVALID_IMAGE_URL');
+      expect(errorResponseSchema.parse(res.body as unknown).error.code).toBe('INVALID_FILE_TYPE');
     });
 
-    it('rejects another user temp avatar and permanent avatar URLs', async () => {
-      const urls = [
-        'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/temp/avatars/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.jpg',
-        'https://ecommerce-assets.s3.ap-southeast-1.amazonaws.com/avatars/shared.jpg',
-      ];
+    it('uploads and removes the current user avatar', async () => {
+      const uploadResponse = await request(app)
+        .put('/api/v1/users/me/avatar')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xe0]), {
+          filename: 'avatar.jpg',
+          contentType: 'image/jpeg',
+        });
 
-      for (const avatarUrl of urls) {
-        const res = await request(app)
-          .patch('/api/v1/users/me')
-          .set('Authorization', `Bearer ${tokenA}`)
-          .send({ avatarUrl });
+      expect(uploadResponse.status).toBe(200);
+      expect(
+        userProfileResponseSchema.parse(uploadResponse.body as unknown).data.user.avatarUrl,
+      ).toContain('/avatars/test-avatar.jpg');
 
-        expect(res.status).toBe(422);
-        const parsed = errorResponseSchema.parse(res.body as unknown);
-        expect(parsed.error.code).toBe('INVALID_IMAGE_URL');
-      }
+      const deleteResponse = await request(app)
+        .delete('/api/v1/users/me/avatar')
+        .set('Authorization', `Bearer ${tokenA}`);
+      expect(deleteResponse.status).toBe(200);
+      expect(
+        userProfileResponseSchema.parse(deleteResponse.body as unknown).data.user.avatarUrl,
+      ).toBeNull();
     });
   });
 

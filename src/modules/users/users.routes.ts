@@ -4,6 +4,7 @@ import { requireAuth } from '../../middlewares/auth.middleware.js';
 import { validateBody, validateParams } from '../../middlewares/validate.middleware.js';
 import { usersController } from './users.controller.js';
 import {
+  avatarUploadRequestSchema,
   addressIdParamSchema,
   addressListResponseSchema,
   addressResponseSchema,
@@ -13,11 +14,10 @@ import {
   updateProfileSchema,
   userResponseSchema,
 } from './users.schema.js';
-import {
-  registry,
-  createSuccessResponseSchema,
-  errorResponse,
-} from '../../docs/registry.js';
+import { UPLOAD_PURPOSES } from '../../constants/index.js';
+import { uploadSingleImage } from '../uploads/uploads.middleware.js';
+import { UPLOAD_POLICIES } from '../uploads/uploads.policy.js';
+import { registry, createSuccessResponseSchema, errorResponse } from '../../docs/registry.js';
 
 export const usersRouter = Router();
 
@@ -55,14 +55,53 @@ registry.registerPath({
       content: { 'application/json': { schema: createSuccessResponseSchema(userResponseSchema) } },
     },
     404: errorResponse(ERROR_CODES.USER_NOT_FOUND),
+  },
+});
+usersRouter.patch('/me', validateBody(updateProfileSchema), usersController.updateProfile);
+
+registry.registerPath({
+  method: 'put',
+  path: '/users/me/avatar',
+  summary: 'Upload or replace current user avatar',
+  tags: ['Users'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: { content: { 'multipart/form-data': { schema: avatarUploadRequestSchema } } },
+  },
+  responses: {
+    200: {
+      description: 'Avatar updated successfully',
+      content: { 'application/json': { schema: createSuccessResponseSchema(userResponseSchema) } },
+    },
+    404: errorResponse(ERROR_CODES.USER_NOT_FOUND),
     422: errorResponse([
-      ERROR_CODES.INVALID_IMAGE_URL,
+      ERROR_CODES.FILE_REQUIRED,
       ERROR_CODES.INVALID_FILE_TYPE,
       ERROR_CODES.FILE_SIZE_EXCEEDED,
     ]),
   },
 });
-usersRouter.patch('/me', validateBody(updateProfileSchema), usersController.updateProfile);
+usersRouter.put(
+  '/me/avatar',
+  uploadSingleImage(UPLOAD_POLICIES[UPLOAD_PURPOSES.USER_AVATAR]),
+  usersController.updateAvatar,
+);
+
+registry.registerPath({
+  method: 'delete',
+  path: '/users/me/avatar',
+  summary: 'Remove current user avatar',
+  tags: ['Users'],
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'Avatar removed successfully',
+      content: { 'application/json': { schema: createSuccessResponseSchema(userResponseSchema) } },
+    },
+    404: errorResponse(ERROR_CODES.USER_NOT_FOUND),
+  },
+});
+usersRouter.delete('/me/avatar', usersController.deleteAvatar);
 
 registry.registerPath({
   method: 'get',

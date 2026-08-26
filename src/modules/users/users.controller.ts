@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { translate } from '../../i18n/index.js';
 import { sendSuccess } from '../../utils/response.js';
+import { getUploadedImage } from '../uploads/uploads.middleware.js';
 import type { CreateAddressDto, UpdateAddressDto, UpdateProfileDto } from './users.schema.js';
 import { usersService } from './users.service.js';
 
@@ -14,6 +15,16 @@ export const usersController = {
     const user = await usersService.updateProfile(req.user.userId, req.body);
     return sendSuccess(res, { user }, 200);
   }) as RequestHandler<Record<string, never>, unknown, UpdateProfileDto>,
+
+  updateAvatar: (async (req, res) => {
+    const user = await usersService.updateAvatar(req.user.userId, getUploadedImage(req.file));
+    return sendSuccess(res, { user }, 200);
+  }) as RequestHandler,
+
+  deleteAvatar: (async (req, res) => {
+    const user = await usersService.deleteAvatar(req.user.userId);
+    return sendSuccess(res, { user }, 200);
+  }) as RequestHandler,
 
   getAddresses: (async (req, res) => {
     const addresses = await usersService.getAddresses(req.user.userId);

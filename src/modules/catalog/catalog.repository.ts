@@ -23,7 +23,6 @@ export interface CreateBrandData {
   name: string;
   slug: string;
   description?: string | null | undefined;
-  logoUrl?: string | null | undefined;
 }
 
 export interface UpdateBrandData {
@@ -40,25 +39,23 @@ export interface CreateProductData {
   status?: ProductStatus | undefined;
   categoryId: string;
   brandId?: string | null | undefined;
-  images?: Array<{
-    url: string;
-    isThumbnail?: boolean | undefined;
-    displayOrder?: number | undefined;
-    altText?: string | null | undefined;
-  }> | undefined;
-  specifications?: Array<{
-    name: string;
-    value: string;
-    displayOrder?: number | undefined;
-  }> | undefined;
-  variants?: Array<{
-    sku: string;
-    name: string;
-    price: bigint;
-    compareAtPrice?: bigint | null | undefined;
-    options?: Prisma.InputJsonValue | undefined;
-    isActive?: boolean | undefined;
-  }> | undefined;
+  specifications?:
+    | Array<{
+        name: string;
+        value: string;
+        displayOrder?: number | undefined;
+      }>
+    | undefined;
+  variants?:
+    | Array<{
+        sku: string;
+        name: string;
+        price: bigint;
+        compareAtPrice?: bigint | null | undefined;
+        options?: Prisma.InputJsonValue | undefined;
+        isActive?: boolean | undefined;
+      }>
+    | undefined;
 }
 
 export interface UpdateProductData {
@@ -97,10 +94,22 @@ export interface CreateImageData {
   altText?: string | null | undefined;
 }
 
+export interface UpdateImageData {
+  isThumbnail?: boolean | undefined;
+  displayOrder?: number | undefined;
+  altText?: string | null | undefined;
+}
+
 export interface CreateSpecData {
   productId: string;
   name: string;
   value: string;
+  displayOrder?: number | undefined;
+}
+
+export interface UpdateSpecData {
+  name?: string | undefined;
+  value?: string | undefined;
   displayOrder?: number | undefined;
 }
 
@@ -233,7 +242,6 @@ export const catalogRepository = {
         name: data.name,
         slug: data.slug,
         description: data.description ?? null,
-        logoUrl: data.logoUrl ?? null,
       },
     });
   },
@@ -308,10 +316,7 @@ export const catalogRepository = {
           product: where,
         },
         _min: { price: true },
-        orderBy: [
-          { _min: { price: isAsc ? 'asc' : 'desc' } },
-          { productId: 'asc' },
-        ],
+        orderBy: [{ _min: { price: isAsc ? 'asc' : 'desc' } }, { productId: 'asc' }],
         skip: (filter.page - 1) * filter.pageSize,
         take: filter.pageSize,
       });
@@ -483,18 +488,6 @@ export const catalogRepository = {
       status: data.status ?? 'DRAFT',
       category: { connect: { id: data.categoryId } },
       ...(data.brandId ? { brand: { connect: { id: data.brandId } } } : {}),
-      ...(data.images && data.images.length > 0
-        ? {
-            images: {
-              create: data.images.map((img) => ({
-                url: img.url,
-                isThumbnail: img.isThumbnail ?? false,
-                displayOrder: img.displayOrder ?? 0,
-                altText: img.altText ?? null,
-              })),
-            },
-          }
-        : {}),
       ...(data.specifications && data.specifications.length > 0
         ? {
             specifications: {
@@ -549,8 +542,9 @@ export const catalogRepository = {
       include: {
         category: true,
         brand: true,
-        images: true,
-        variants: true,
+        images: { orderBy: { displayOrder: 'asc' } },
+        variants: { orderBy: { price: 'asc' } },
+        specifications: { orderBy: { displayOrder: 'asc' } },
       },
     });
   },
@@ -644,6 +638,17 @@ export const catalogRepository = {
     });
   },
 
+  updateImage(id: string, data: UpdateImageData, tx: PrismaClientOrTx = prisma) {
+    return tx.productImage.update({
+      where: { id },
+      data: {
+        ...(data.isThumbnail !== undefined ? { isThumbnail: data.isThumbnail } : {}),
+        ...(data.displayOrder !== undefined ? { displayOrder: data.displayOrder } : {}),
+        ...(data.altText !== undefined ? { altText: data.altText } : {}),
+      },
+    });
+  },
+
   async setThumbnailImage(productId: string, imageId: string, tx: PrismaClientOrTx = prisma) {
     await tx.productImage.updateMany({
       where: { productId, isThumbnail: true },
@@ -676,6 +681,17 @@ export const catalogRepository = {
         name: data.name,
         value: data.value,
         displayOrder: data.displayOrder ?? 0,
+      },
+    });
+  },
+
+  updateSpec(id: string, data: UpdateSpecData, tx: PrismaClientOrTx = prisma) {
+    return tx.productSpecification.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.value !== undefined ? { value: data.value } : {}),
+        ...(data.displayOrder !== undefined ? { displayOrder: data.displayOrder } : {}),
       },
     });
   },
