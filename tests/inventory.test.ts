@@ -87,6 +87,10 @@ describe('Inventory & Stock Movement Domain', () => {
   beforeEach(async () => {
     // Dọn dẹp dữ liệu
     await prisma.auditLog.deleteMany();
+    await prisma.couponUsage.deleteMany();
+    await prisma.coupon.deleteMany();
+    await prisma.cartItem.deleteMany();
+    await prisma.cart.deleteMany();
     await prisma.stockMovement.deleteMany();
     await prisma.inventory.deleteMany();
     await prisma.productVariant.deleteMany();
@@ -211,6 +215,10 @@ describe('Inventory & Stock Movement Domain', () => {
 
   afterAll(async () => {
     await prisma.auditLog.deleteMany();
+    await prisma.couponUsage.deleteMany();
+    await prisma.coupon.deleteMany();
+    await prisma.cartItem.deleteMany();
+    await prisma.cart.deleteMany();
     await prisma.stockMovement.deleteMany();
     await prisma.inventory.deleteMany();
     await prisma.productVariant.deleteMany();

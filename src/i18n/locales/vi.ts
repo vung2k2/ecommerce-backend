@@ -32,6 +32,7 @@ export const viMessages: Record<MessageKey, string> = {
   'errors.productSlugExists': 'Đường dẫn sản phẩm (slug) đã tồn tại',
   'errors.productSkuExists': 'Mã SKU sản phẩm đã tồn tại',
   'errors.variantNotFound': 'Không tìm thấy biến thể sản phẩm',
+  'errors.variantInactive': 'Biến thể sản phẩm đang tạm ngừng kinh doanh',
   'errors.productImageNotFound': 'Không tìm thấy ảnh sản phẩm',
   'errors.specNotFound': 'Không tìm thấy thông số kỹ thuật sản phẩm',
   'errors.inventoryNotFound': 'Không tìm thấy thông tin tồn kho',
@@ -43,6 +44,25 @@ export const viMessages: Record<MessageKey, string> = {
   'errors.invalidFileType': 'Định dạng tệp không được hỗ trợ cho mục đích tải lên này',
   'errors.fileSizeExceeded': 'Dung lượng tệp vượt quá giới hạn tối đa cho phép',
   'errors.fileRequired': 'Tệp ảnh là bắt buộc',
+  'errors.cartNotFound': 'Không tìm thấy giỏ hàng',
+  'errors.cartItemNotFound': 'Không tìm thấy sản phẩm trong giỏ hàng',
+  'errors.cartItemQuantityInvalid': 'Số lượng yêu cầu không hợp lệ hoặc vượt quá tồn kho khả dụng',
+  'errors.cartNoAvailableItems':
+    'Không có sản phẩm khả dụng nào trong giỏ hàng để áp dụng mã giảm giá',
+  'errors.couponNotFound': 'Không tìm thấy mã giảm giá',
+  'errors.couponCodeExists': 'Mã giảm giá đã tồn tại',
+  'errors.couponInactive': 'Mã giảm giá đang bị vô hiệu hóa',
+  'errors.couponNotStarted': 'Mã giảm giá chưa đến thời gian áp dụng',
+  'errors.couponExpired': 'Mã giảm giá đã hết hạn',
+  'errors.couponMinOrderNotMet':
+    'Giá trị đơn hàng chưa đạt mức tối thiểu để áp dụng mã giảm giá này',
+  'errors.couponUsageLimitExceeded': 'Mã giảm giá đã hết lượt sử dụng',
+  'errors.couponUserLimitExceeded': 'Bạn đã sử dụng hết lượt cho phép của mã giảm giá này',
+  'errors.couponCannotDeleteUsed':
+    'Không thể xóa mã giảm giá đã được sử dụng. Vui lòng chuyển sang vô hiệu hóa.',
+  'errors.invalidCouponDates': 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
+  'errors.invalidCouponLimits':
+    'Giới hạn sử dụng không thể nhỏ hơn số lượt đã dùng hiện tại',
   'validation.bodyInvalid': 'Request body không hợp lệ',
   'validation.paramsInvalid': 'Request params không hợp lệ',
   'validation.queryInvalid': 'Request query không hợp lệ',
@@ -89,4 +109,7 @@ export const viMessages: Record<MessageKey, string> = {
   'success.variantDeleted': 'Xóa biến thể thành công',
   'success.imageDeleted': 'Xóa ảnh sản phẩm thành công',
   'success.specDeleted': 'Xóa thông số kỹ thuật thành công',
+  'success.cartCleared': 'Xóa toàn bộ giỏ hàng thành công',
+  'success.cartItemDeleted': 'Đã xóa sản phẩm khỏi giỏ hàng',
+  'success.couponDeleted': 'Xóa mã giảm giá thành công',
 };

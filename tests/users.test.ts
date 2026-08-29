@@ -90,6 +90,9 @@ describe('Users & Address Management', () => {
       fileUrl: s3Service.getPublicUrl('avatars/test-avatar.jpg'),
     });
     vi.spyOn(s3Service, 'cleanupObjects').mockResolvedValue();
+    await prisma.couponUsage.deleteMany();
+    await prisma.cartItem.deleteMany();
+    await prisma.cart.deleteMany();
     await prisma.user.deleteMany({
       where: {
         email: { in: [userA.email, userB.email] },

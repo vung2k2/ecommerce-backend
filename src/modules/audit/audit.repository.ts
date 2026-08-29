@@ -4,11 +4,11 @@ import type { Prisma } from '../../generated/prisma/client.js';
 type PrismaClientOrTx = Prisma.TransactionClient | typeof prisma;
 
 export interface CreateAuditLogData {
-  actorId?: string | null;
+  actorId?: string | null | undefined;
   action: string;
   targetType: string;
-  targetId?: string | null;
-  payload?: Prisma.InputJsonValue;
+  targetId?: string | null | undefined;
+  payload?: Prisma.InputJsonValue | undefined;
 }
 
 export const auditRepository = {

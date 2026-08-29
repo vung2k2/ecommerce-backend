@@ -119,6 +119,10 @@ describe('Catalog & Media Domain', () => {
     vi.restoreAllMocks();
     // Dọn dẹp dữ liệu
     await prisma.auditLog.deleteMany();
+    await prisma.couponUsage.deleteMany();
+    await prisma.coupon.deleteMany();
+    await prisma.cartItem.deleteMany();
+    await prisma.cart.deleteMany();
     await prisma.productSpecification.deleteMany();
     await prisma.productImage.deleteMany();
     await prisma.productVariant.deleteMany();

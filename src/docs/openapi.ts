@@ -7,6 +7,8 @@ import '../modules/users/users.routes.js';
 import '../modules/admin/staff/staff.routes.js';
 import '../modules/catalog/catalog.routes.js';
 import '../modules/inventory/inventory.routes.js';
+import '../modules/cart/cart.routes.js';
+import '../modules/coupons/coupons.routes.js';
 
 const apiDescription = `
 # FE – BE API Integration Guideline

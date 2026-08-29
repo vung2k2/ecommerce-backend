@@ -28,6 +28,7 @@ export const enMessages = {
   'errors.productSlugExists': 'Product slug already exists',
   'errors.productSkuExists': 'Product SKU already exists',
   'errors.variantNotFound': 'Product variant not found',
+  'errors.variantInactive': 'Product variant is inactive',
   'errors.productImageNotFound': 'Product image not found',
   'errors.specNotFound': 'Product specification not found',
   'errors.inventoryNotFound': 'Inventory not found',
@@ -41,6 +42,24 @@ export const enMessages = {
   'errors.invalidFileType': 'Invalid file type for this upload purpose',
   'errors.fileSizeExceeded': 'File size exceeds the maximum allowed limit',
   'errors.fileRequired': 'An image file is required',
+  'errors.cartNotFound': 'Cart not found',
+  'errors.cartItemNotFound': 'Cart item not found',
+  'errors.cartItemQuantityInvalid': 'Requested quantity is invalid or exceeds available stock',
+  'errors.cartNoAvailableItems': 'No available items in cart to apply coupon',
+  'errors.couponNotFound': 'Coupon not found',
+  'errors.couponCodeExists': 'Coupon code already exists',
+  'errors.couponInactive': 'Coupon is inactive',
+  'errors.couponNotStarted': 'Coupon is not yet active',
+  'errors.couponExpired': 'Coupon has expired',
+  'errors.couponMinOrderNotMet':
+    'Order subtotal does not meet the minimum order amount for this coupon',
+  'errors.couponUsageLimitExceeded': 'Coupon total usage limit has been reached',
+  'errors.couponUserLimitExceeded': 'You have reached the maximum usage limit for this coupon',
+  'errors.couponCannotDeleteUsed':
+    'Cannot delete coupon that has already been used. Please deactivate it instead.',
+  'errors.invalidCouponDates': 'Start date must be before or equal to end date',
+  'errors.invalidCouponLimits':
+    'Coupon usage limit cannot be less than the current used count',
   'validation.bodyInvalid': 'Request body is invalid',
   'validation.paramsInvalid': 'Request params are invalid',
   'validation.queryInvalid': 'Request query is invalid',
@@ -87,6 +106,9 @@ export const enMessages = {
   'success.variantDeleted': 'Variant deleted successfully',
   'success.imageDeleted': 'Product image deleted successfully',
   'success.specDeleted': 'Specification deleted successfully',
+  'success.cartCleared': 'Cart cleared successfully',
+  'success.cartItemDeleted': 'Cart item removed successfully',
+  'success.couponDeleted': 'Coupon deleted successfully',
 } as const;
 
 export type MessageKey = keyof typeof enMessages;

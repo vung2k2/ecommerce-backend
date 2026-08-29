@@ -65,6 +65,10 @@ describe('Staff Management & Authorization PBAC', () => {
   beforeEach(async () => {
     // Dọn dẹp dữ liệu test
     await prisma.auditLog.deleteMany();
+    await prisma.couponUsage.deleteMany();
+    await prisma.coupon.deleteMany();
+    await prisma.cartItem.deleteMany();
+    await prisma.cart.deleteMany();
     await prisma.userPermission.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();

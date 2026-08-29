@@ -232,14 +232,14 @@ Acceptance criteria:
 
 ### 5.5. Giỏ hàng và coupon
 
-- [ ] Một user có một active cart.
-- [ ] Thêm, sửa số lượng, xóa item và xóa toàn bộ cart.
-- [ ] Variant inactive hoặc hết hàng được báo rõ khi đọc/checkout cart.
-- [ ] Server luôn đọc lại giá và tồn kho; không dùng total từ client.
-- [ ] Coupon hỗ trợ `PERCENTAGE` và `FIXED_AMOUNT`.
-- [ ] Coupon có thời gian hiệu lực, min order, max discount và usage limit.
-- [ ] Theo dõi tổng usage và usage theo user.
-- [ ] Tạo API preview/validate coupon nhưng vẫn validate lại trong checkout.
+- [x] Một user có một active cart.
+- [x] Thêm, sửa số lượng, xóa item và xóa toàn bộ cart.
+- [x] Variant inactive hoặc hết hàng được báo rõ khi đọc/checkout cart.
+- [x] Server luôn đọc lại giá và tồn kho; không dùng total từ client.
+- [x] Coupon hỗ trợ `PERCENTAGE` và `FIXED_AMOUNT`.
+- [x] Coupon có thời gian hiệu lực, min order, max discount và usage limit.
+- [x] Theo dõi tổng usage và usage theo user.
+- [x] Tạo API preview/validate coupon nhưng vẫn validate lại trong checkout.
 - [ ] Coupon usage được ghi atomically cùng order.
 
 Acceptance criteria:
