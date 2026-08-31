@@ -60,6 +60,22 @@ export const enMessages = {
   'errors.invalidCouponDates': 'Start date must be before or equal to end date',
   'errors.invalidCouponLimits':
     'Coupon usage limit cannot be less than the current used count',
+  'errors.orderNotFound': 'Order not found',
+  'errors.orderItemsEmpty': 'Order must contain at least one item',
+  'errors.orderCannotCancel': 'Order cannot be cancelled in its current status',
+  'errors.orderPaidCannotCancel': 'Paid online order cannot be cancelled directly. Please contact customer support.',
+  'errors.orderInvalidStateTransition': 'Invalid order state transition',
+  'errors.orderVnPayAdminConfirmNotAllowed':
+    'VNPay orders cannot be confirmed manually by admin. Awaiting IPN webhook verification.',
+  'errors.orderCartEmpty': 'Shopping cart is empty',
+  'errors.orderCartItemsUnavailable': 'Some items in the cart are no longer available',
+  'errors.orderAddressRequired': 'Shipping address is required',
+  'errors.orderVariantOrderedCannotDelete':
+    'Cannot delete product or variant that exists in existing orders. Please set it to inactive instead.',
+  'errors.paymentOrderNotPayable': 'Order is not in a payable state',
+  'errors.paymentChecksumInvalid': 'Payment checksum verification failed',
+  'errors.paymentTransactionNotFound': 'Payment transaction not found',
+  'errors.paymentAmountMismatch': 'Payment amount does not match order amount',
   'validation.bodyInvalid': 'Request body is invalid',
   'validation.paramsInvalid': 'Request params are invalid',
   'validation.queryInvalid': 'Request query is invalid',
@@ -97,6 +113,9 @@ export const enMessages = {
   'validation.restockReasonRequired': 'Reason for restocking is required',
   'validation.onHandNonNegative': 'On-hand stock must be greater than or equal to 0',
   'validation.adjustmentReasonRequired': 'Reason for stock adjustment is required',
+  'validation.orderIdUuid': 'Order ID must be a valid UUID',
+  'validation.paymentMethodRequired': 'Payment method is required',
+  'validation.orderStatusRequired': 'Order status is required',
   'success.loggedOut': 'Logged out successfully',
   'success.loggedOutAll': 'Logged out from all devices successfully',
   'success.addressDeleted': 'Address deleted successfully',
@@ -109,6 +128,8 @@ export const enMessages = {
   'success.cartCleared': 'Cart cleared successfully',
   'success.cartItemDeleted': 'Cart item removed successfully',
   'success.couponDeleted': 'Coupon deleted successfully',
+  'success.orderCancelled': 'Order cancelled successfully',
+  'success.orderStatusUpdated': 'Order status updated successfully',
 } as const;
 
 export type MessageKey = keyof typeof enMessages;

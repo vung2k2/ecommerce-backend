@@ -68,6 +68,20 @@ const errorMessageKeys = {
   [ERROR_CODES.COUPON_CANNOT_DELETE_USED]: 'errors.couponCannotDeleteUsed',
   [ERROR_CODES.INVALID_COUPON_DATES]: 'errors.invalidCouponDates',
   [ERROR_CODES.INVALID_COUPON_LIMITS]: 'errors.invalidCouponLimits',
+  [ERROR_CODES.ORDER_NOT_FOUND]: 'errors.orderNotFound',
+  [ERROR_CODES.ORDER_ITEMS_EMPTY]: 'errors.orderItemsEmpty',
+  [ERROR_CODES.ORDER_CANNOT_CANCEL]: 'errors.orderCannotCancel',
+  [ERROR_CODES.ORDER_PAID_CANNOT_CANCEL]: 'errors.orderPaidCannotCancel',
+  [ERROR_CODES.ORDER_INVALID_STATE_TRANSITION]: 'errors.orderInvalidStateTransition',
+  [ERROR_CODES.ORDER_VNPAY_ADMIN_CONFIRM_NOT_ALLOWED]: 'errors.orderVnPayAdminConfirmNotAllowed',
+  [ERROR_CODES.ORDER_CART_EMPTY]: 'errors.orderCartEmpty',
+  [ERROR_CODES.ORDER_CART_ITEMS_UNAVAILABLE]: 'errors.orderCartItemsUnavailable',
+  [ERROR_CODES.ORDER_ADDRESS_REQUIRED]: 'errors.orderAddressRequired',
+  [ERROR_CODES.ORDER_VARIANT_ORDERED_CANNOT_DELETE]: 'errors.orderVariantOrderedCannotDelete',
+  [ERROR_CODES.PAYMENT_ORDER_NOT_PAYABLE]: 'errors.paymentOrderNotPayable',
+  [ERROR_CODES.PAYMENT_CHECKSUM_INVALID]: 'errors.paymentChecksumInvalid',
+  [ERROR_CODES.PAYMENT_TRANSACTION_NOT_FOUND]: 'errors.paymentTransactionNotFound',
+  [ERROR_CODES.PAYMENT_AMOUNT_MISMATCH]: 'errors.paymentAmountMismatch',
 } as const satisfies Record<ErrorCode, MessageKey>;
 
 function interpolate(message: string, params: TranslationParams): string {

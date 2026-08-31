@@ -7,6 +7,7 @@ import {
 import { prisma } from '../../database/prisma.js';
 import { Prisma, type Category } from '../../generated/prisma/client.js';
 import { auditRepository } from '../audit/audit.repository.js';
+import { orderRepository } from '../orders/orders.repository.js';
 import { uploadsService, type ImageFile } from '../uploads/uploads.service.js';
 import { s3Service } from '../../services/s3.service.js';
 import { AppError } from '../../utils/app-error.js';
@@ -808,6 +809,11 @@ export const catalogService = {
       throw new AppError(404, ERROR_CODES.PRODUCT_NOT_FOUND);
     }
 
+    const orderCount = await orderRepository.countOrderItemsByProductId(id);
+    if (orderCount > 0) {
+      throw new AppError(409, ERROR_CODES.ORDER_VARIANT_ORDERED_CANNOT_DELETE);
+    }
+
     if (await catalogRepository.productHasStockHistory(id)) {
       throw new AppError(409, ERROR_CODES.STOCK_HISTORY_EXISTS);
     }
@@ -939,6 +945,11 @@ export const catalogService = {
     const variant = await catalogRepository.findVariantById(id);
     if (!variant) {
       throw new AppError(404, ERROR_CODES.VARIANT_NOT_FOUND);
+    }
+
+    const orderCount = await orderRepository.countOrderItemsByVariantId(id);
+    if (orderCount > 0) {
+      throw new AppError(409, ERROR_CODES.ORDER_VARIANT_ORDERED_CANNOT_DELETE);
     }
 
     if (await catalogRepository.variantHasStockHistory(id)) {

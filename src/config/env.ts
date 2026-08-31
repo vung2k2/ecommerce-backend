@@ -18,6 +18,10 @@ const envSchema = z
     AWS_S3_BUCKET_NAME: z.string().default('ecommerce-assets'),
     AWS_S3_ENDPOINT: z.string().url().optional(),
     AWS_S3_PUBLIC_DOMAIN: z.url().optional(),
+    VNPAY_TMN_CODE: z.string().default('2QXUI4J4'),
+    VNPAY_HASH_SECRET: z.string().default('RA3K642FH3VOX9AJSKGYY479QJ4D3YQ6'),
+    VNPAY_PAY_URL: z.url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
+    VNPAY_RETURN_URL: z.url().default('http://localhost:3000/api/v1/payments/vnpay/return'),
   })
   .refine((data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',

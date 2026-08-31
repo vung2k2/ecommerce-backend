@@ -179,18 +179,23 @@ export const cartService = {
   },
 
   async removeItem(userId: string, itemId: string): Promise<SerializedCart> {
-    const item = await cartRepository.findCartItemById(itemId);
-    if (!item || item.cart.userId !== userId) {
-      throw new AppError(404, ERROR_CODES.CART_ITEM_NOT_FOUND);
-    }
+    return prisma.$transaction(async (tx) => {
+      const item = await cartRepository.findCartItemById(itemId, tx);
+      if (!item || item.cart.userId !== userId) {
+        throw new AppError(404, ERROR_CODES.CART_ITEM_NOT_FOUND);
+      }
 
-    await cartRepository.removeCartItem(itemId);
-    return this.getCart(userId);
+      await cartRepository.lockCart(item.cartId, tx);
+      await cartRepository.removeCartItem(itemId, tx);
+      return this.getCart(userId, tx);
+    });
   },
 
   async clearCart(userId: string): Promise<SerializedCart> {
-    const cart = await cartRepository.getOrCreateCart(userId);
-    await cartRepository.clearCart(cart.id);
-    return this.getCart(userId);
+    return prisma.$transaction(async (tx) => {
+      const cart = await cartRepository.getOrCreateCartAndLock(userId, tx);
+      await cartRepository.clearCart(cart.id, tx);
+      return this.getCart(userId, tx);
+    });
   },
 };

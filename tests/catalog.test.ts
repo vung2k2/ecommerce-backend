@@ -118,11 +118,17 @@ describe('Catalog & Media Domain', () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
     // Dọn dẹp dữ liệu
+    await prisma.paymentTransaction.deleteMany();
+    await prisma.orderStatusHistory.deleteMany();
+    await prisma.orderItem.deleteMany();
+    await prisma.order.deleteMany();
     await prisma.auditLog.deleteMany();
     await prisma.couponUsage.deleteMany();
     await prisma.coupon.deleteMany();
     await prisma.cartItem.deleteMany();
     await prisma.cart.deleteMany();
+    await prisma.stockMovement.deleteMany();
+    await prisma.inventory.deleteMany();
     await prisma.productSpecification.deleteMany();
     await prisma.productImage.deleteMany();
     await prisma.productVariant.deleteMany();

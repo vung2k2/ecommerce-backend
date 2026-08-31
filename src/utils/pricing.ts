@@ -12,6 +12,7 @@ export interface CartItemWithDetails {
     sku: string;
     name: string;
     price: bigint;
+    options?: unknown;
     isActive: boolean;
     product: {
       id: string;

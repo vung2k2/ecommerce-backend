@@ -188,7 +188,7 @@ Acceptance criteria:
 - [x] Thiết kế category dạng cây, brand, product, specification và image.
 - [x] Thiết kế product variant với SKU duy nhất, options, price và compare-at price.
 - [x] Product có trạng thái `DRAFT`, `ACTIVE`, `INACTIVE`.
-- [ ] Product và variant đã được dùng trong order không bị hard-delete. (Sẽ hoàn thiện ở mục 5.7 Orders & Checkout)
+- [x] Product và variant đã được dùng trong order không bị hard-delete.
 - [x] Admin CRUD category, brand, product, variant và specification.
 - [x] Public API chỉ trả sản phẩm đang active.
 - [x] Danh sách sản phẩm hỗ trợ pagination, keyword, category, brand, khoảng giá, specification và sort.
@@ -216,9 +216,9 @@ Acceptance criteria:
 - [x] Thiết kế stock movement/audit ledger.
 - [x] Admin nhập, giảm và điều chỉnh tồn kho với lý do.
 - [x] Không cho `onHand`, `reserved` hoặc available stock âm.
-- [ ] Reserve stock khi tạo order cần giữ hàng.
-- [ ] Commit reservation khi order được xác nhận phù hợp.
-- [ ] Release reservation khi payment thất bại, hết hạn hoặc order bị hủy.
+- [x] Reserve stock khi tạo order cần giữ hàng.
+- [x] Commit reservation khi order được xác nhận phù hợp.
+- [x] Release reservation khi payment thất bại, hết hạn hoặc order bị hủy.
 - [x] Dùng transaction và conditional update/locking để chống overselling.
 - [x] Mọi thao tác tồn kho lặp lại phải idempotent theo business event.
 
@@ -240,7 +240,7 @@ Acceptance criteria:
 - [x] Coupon có thời gian hiệu lực, min order, max discount và usage limit.
 - [x] Theo dõi tổng usage và usage theo user.
 - [x] Tạo API preview/validate coupon nhưng vẫn validate lại trong checkout.
-- [ ] Coupon usage được ghi atomically cùng order.
+- [x] Coupon usage được ghi atomically cùng order.
 
 Acceptance criteria:
 
@@ -253,12 +253,12 @@ Acceptance criteria:
 
 ### 5.6. Order và checkout
 
-- [ ] Thiết kế order, order item, shipping address snapshot và status history.
-- [ ] Order item snapshot product name, SKU, options và unit price.
-- [ ] Checkout chỉ dành cho user đăng nhập.
-- [ ] Checkout chạy trong transaction phù hợp: validate cart, tính giá, coupon, reserve stock và tạo order.
-- [ ] Hỗ trợ payment method `COD` và `VNPAY`.
-- [ ] Order state:
+- [x] Thiết kế order, order item, shipping address snapshot và status history.
+- [x] Order item snapshot product name, SKU, options và unit price.
+- [x] Checkout chỉ dành cho user đăng nhập.
+- [x] Checkout chạy trong transaction phù hợp: validate cart, tính giá, coupon, reserve stock và tạo order.
+- [x] Hỗ trợ payment method `COD` và `VNPAY`.
+- [x] Order state:
   - `PENDING_PAYMENT`
   - `CONFIRMED`
   - `PROCESSING`
@@ -266,14 +266,14 @@ Acceptance criteria:
   - `DELIVERED`
   - `CANCELLED`
   - `PAYMENT_EXPIRED`
-- [ ] Payment state: `PENDING`, `PAID`, `FAILED`, `EXPIRED`.
-- [ ] State transition được kiểm soát bằng domain service/state machine.
-- [ ] COD xác nhận order ngay sau checkout hợp lệ.
-- [ ] VNPay tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
-- [ ] BullMQ job hết hạn order và giải phóng reservation.
-- [ ] Khách chỉ hủy order trước khi processing.
-- [ ] Admin chuyển order qua các fulfillment state hợp lệ.
-- [ ] User chỉ xem và thao tác trên order của chính mình.
+- [x] Payment state: `PENDING`, `PAID`, `FAILED`, `EXPIRED`.
+- [x] State transition được kiểm soát bằng domain service/state machine.
+- [x] COD xác nhận order ngay sau checkout hợp lệ.
+- [x] VNPay tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
+- [ ] BullMQ job hết hạn order và giải phóng reservation. (Sẽ tích hợp cùng Redis/BullMQ worker)
+- [x] Khách chỉ hủy order trước khi processing.
+- [x] Admin chuyển order qua các fulfillment state hợp lệ.
+- [x] User chỉ xem và thao tác trên order của chính mình.
 
 Acceptance criteria:
 
@@ -287,20 +287,20 @@ Acceptance criteria:
 
 ### 5.7. VNPay Sandbox PAY 2.1.0
 
-- [ ] Đăng ký thông tin Sandbox và lưu `vnp_TmnCode`, `vnp_HashSecret` bằng secret configuration.
-- [ ] Tạo `vnp_TxnRef` duy nhất, không trùng trong ngày.
-- [ ] Tạo payment URL với tham số được sort và ký HMAC-SHA512.
-- [ ] Amount lấy từ order trong database và nhân 100 khi gửi VNPay.
-- [ ] Thiết lập thời điểm tạo/hết hạn theo `Asia/Ho_Chi_Minh`.
-- [ ] Return URL xác minh chữ ký và chỉ trả kết quả cho client.
-- [ ] Không đánh dấu thanh toán thành công chỉ dựa vào Return URL.
-- [ ] IPN là nguồn server-to-server cập nhật payment/order.
-- [ ] IPN kiểm tra signature, merchant, transaction reference, amount, response code và transaction status.
-- [ ] Lưu payment transaction/event phục vụ audit, loại bỏ dữ liệu nhạy cảm.
-- [ ] Dùng unique constraint và database transaction chống callback trùng.
-- [ ] Trả đúng `RspCode` và `Message` cho trường hợp thành công, sai checksum, không tìm thấy order, sai amount và order đã xử lý.
-- [ ] Xử lý callback đến sau khi order đã hết hạn theo policy rõ ràng và có audit.
-- [ ] Public IPN sử dụng hostname HTTPS hợp lệ.
+- [x] Đăng ký thông tin Sandbox và lưu `vnp_TmnCode`, `vnp_HashSecret` bằng secret configuration.
+- [x] Tạo `vnp_TxnRef` duy nhất, không trùng trong ngày.
+- [x] Tạo payment URL với tham số được sort và ký HMAC-SHA512.
+- [x] Amount lấy từ order trong database và nhân 100 khi gửi VNPay.
+- [x] Thiết lập thời điểm tạo/hết hạn theo `Asia/Ho_Chi_Minh`.
+- [x] Return URL xác minh chữ ký và chỉ trả kết quả cho client.
+- [x] Không đánh dấu thanh toán thành công chỉ dựa vào Return URL.
+- [x] IPN là nguồn server-to-server cập nhật payment/order.
+- [x] IPN kiểm tra signature, merchant, transaction reference, amount, response code và transaction status.
+- [x] Lưu payment transaction/event phục vụ audit, loại bỏ dữ liệu nhạy cảm.
+- [x] Dùng unique constraint và database transaction chống callback trùng.
+- [x] Trả đúng `RspCode` và `Message` cho trường hợp thành công, sai checksum, không tìm thấy order, sai amount và order đã xử lý.
+- [x] Xử lý callback đến sau khi order đã hết hạn theo policy rõ ràng và có audit.
+- [x] Public IPN sử dụng hostname HTTPS hợp lệ.
 
 Acceptance criteria:
 

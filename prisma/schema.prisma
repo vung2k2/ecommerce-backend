@@ -32,23 +32,54 @@ enum DiscountType {
   FIXED_AMOUNT
 }
 
+enum OrderStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  PROCESSING
+  SHIPPING
+  DELIVERED
+  CANCELLED
+  PAYMENT_EXPIRED
+}
+
+enum PaymentMethod {
+  COD
+  VNPAY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  EXPIRED
+}
+
 model User {
-  id            String           @id @default(uuid()) @db.Uuid
-  email         String           @unique @db.VarChar(255)
-  passwordHash  String           @map("password_hash") @db.VarChar(255)
-  fullName      String           @map("full_name") @db.VarChar(100)
-  avatarUrl     String?          @map("avatar_url") @db.VarChar(500)
-  role          Role             @default(CUSTOMER)
-  isActive      Boolean          @default(true) @map("is_active")
-  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
-  refreshTokens RefreshToken[]
-  addresses     Address[]
-  permissions   UserPermission[]
-  auditLogs     AuditLog[]
-  stockMovements StockMovement[]
-  cart          Cart?
-  couponUsages  CouponUsage[]
+  id                   String               @id @default(uuid()) @db.Uuid
+  email                String               @unique @db.VarChar(255)
+  passwordHash         String               @map("password_hash") @db.VarChar(255)
+  fullName             String               @map("full_name") @db.VarChar(100)
+  avatarUrl            String?              @map("avatar_url") @db.VarChar(500)
+  role                 Role                 @default(CUSTOMER)
+  isActive             Boolean              @default(true) @map("is_active")
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  refreshTokens        RefreshToken[]
+  addresses            Address[]
+  permissions          UserPermission[]
+  auditLogs            AuditLog[]
+  stockMovements       StockMovement[]
+  cart                 Cart?
+  couponUsages         CouponUsage[]
+  orders               Order[]
+  orderStatusHistories OrderStatusHistory[]
 
   @@map("users")
 }
@@ -178,19 +209,20 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id             String   @id @default(uuid()) @db.Uuid
-  productId      String   @map("product_id") @db.Uuid
-  sku            String   @unique @db.VarChar(100)
-  name           String   @db.VarChar(150)
-  price          BigInt   @db.BigInt
-  compareAtPrice BigInt?  @map("compare_at_price") @db.BigInt
-  options        Json?    @db.JsonB
-  isActive       Boolean  @default(true) @map("is_active")
-  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id             String      @id @default(uuid()) @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  sku            String      @unique @db.VarChar(100)
+  name           String      @db.VarChar(150)
+  price          BigInt      @db.BigInt
+  compareAtPrice BigInt?     @map("compare_at_price") @db.BigInt
+  options        Json?       @db.JsonB
+  isActive       Boolean     @default(true) @map("is_active")
+  product        Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   inventory      Inventory?
   cartItems      CartItem[]
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  orderItems     OrderItem[]
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([productId])
   @@index([price])
@@ -304,8 +336,108 @@ model CouponUsage {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   coupon         Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
   user           User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  order          Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([couponId, userId])
   @@index([userId])
+  @@index([orderId])
   @@map("coupon_usages")
+}
+
+model Order {
+  id             String               @id @default(uuid()) @db.Uuid
+  orderNumber    String               @unique @map("order_number") @db.VarChar(50)
+  userId         String               @map("user_id") @db.Uuid
+  status         OrderStatus          @default(PENDING_PAYMENT)
+  paymentMethod  PaymentMethod        @map("payment_method")
+  paymentStatus  PaymentStatus        @default(PENDING) @map("payment_status")
+  subtotalAmount BigInt               @map("subtotal_amount") @db.BigInt
+  discountAmount BigInt               @default(0) @map("discount_amount") @db.BigInt
+  shippingFee    BigInt               @default(0) @map("shipping_fee") @db.BigInt
+  totalAmount    BigInt               @map("total_amount") @db.BigInt
+  recipientName  String               @map("recipient_name") @db.VarChar(100)
+  phone          String               @db.VarChar(20)
+  province       String               @db.VarChar(100)
+  district       String               @db.VarChar(100)
+  ward           String               @db.VarChar(100)
+  streetAddress  String               @map("street_address") @db.VarChar(255)
+  couponCode     String?              @map("coupon_code") @db.VarChar(50)
+  notes          String?              @db.Text
+  cancelReason   String?              @map("cancel_reason") @db.VarChar(255)
+  cancelledAt    DateTime?            @map("cancelled_at") @db.Timestamptz(3)
+  paymentExpiresAt DateTime?          @map("payment_expires_at") @db.Timestamptz(3)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items               OrderItem[]
+  statusHistory       OrderStatusHistory[]
+  couponUsages        CouponUsage[]
+  paymentTransactions PaymentTransaction[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([paymentExpiresAt])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  orderId     String          @map("order_id") @db.Uuid
+  variantId   String?         @map("variant_id") @db.Uuid
+  productName String          @map("product_name") @db.VarChar(255)
+  sku         String          @db.VarChar(100)
+  options     Json?           @db.JsonB
+  unitPrice   BigInt          @map("unit_price") @db.BigInt
+  quantity    Int
+  totalPrice  BigInt          @map("total_price") @db.BigInt
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(uuid()) @db.Uuid
+  orderId     String       @map("order_id") @db.Uuid
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  reason      String?      @db.VarChar(255)
+  changedById String?      @map("changed_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy   User?        @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([changedById])
+  @@map("order_status_history")
+}
+
+model PaymentTransaction {
+  id                String                   @id @default(uuid()) @db.Uuid
+  orderId           String                   @map("order_id") @db.Uuid
+  paymentMethod     PaymentMethod            @default(VNPAY) @map("payment_method")
+  txnRef            String                   @unique @map("txn_ref") @db.VarChar(100)
+  bankCode          String?                  @map("bank_code") @db.VarChar(50)
+  bankTranNo        String?                  @map("bank_tran_no") @db.VarChar(255)
+  cardType          String?                  @map("card_type") @db.VarChar(50)
+  amount            BigInt                   @db.BigInt
+  status            PaymentTransactionStatus @default(PENDING)
+  responseCode      String?                  @map("response_code") @db.VarChar(50)
+  transactionNo     String?                  @map("transaction_no") @db.VarChar(100)
+  transactionStatus String?                  @map("transaction_status") @db.VarChar(50)
+  payDate           DateTime?                @map("pay_date") @db.Timestamptz(3)
+  metadata          Json?                    @db.JsonB
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  order             Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([txnRef])
+  @@index([status])
+  @@map("payment_transactions")
 }

@@ -59,6 +59,10 @@ describe('Cart Module Integration Tests', () => {
 
   beforeEach(async () => {
     // Clear test tables
+    await prisma.paymentTransaction.deleteMany();
+    await prisma.orderStatusHistory.deleteMany();
+    await prisma.orderItem.deleteMany();
+    await prisma.order.deleteMany();
     await prisma.couponUsage.deleteMany();
     await prisma.coupon.deleteMany();
     await prisma.cartItem.deleteMany();

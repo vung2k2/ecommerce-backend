@@ -10,6 +10,7 @@ server.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'HTTP server started');
 });
 
+
 function shutdown(signal: string) {
   logger.info({ signal }, 'Graceful shutdown started');
 

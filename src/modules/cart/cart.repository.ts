@@ -33,6 +33,7 @@ export interface CartItemWithDetailsRecord {
     sku: string;
     name: string;
     price: bigint;
+    options?: Prisma.JsonValue | null;
     isActive: boolean;
     product: {
       id: string;
