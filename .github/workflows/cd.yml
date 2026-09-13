@@ -110,6 +110,10 @@ jobs:
             # Đăng nhập GHCR trên EC2 (nếu package ở chế độ private)
             echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin || true
 
+            # Giải phóng dung lượng đĩa EC2 trước khi pull image mới
+            echo "🧹 Cleaning up unused Docker resources to free disk space..."
+            docker system prune -af --volumes=false || true
+
             export API_IMAGE="ghcr.io/${REPO}-api:${IMAGE_TAG}"
             export MIGRATOR_IMAGE="ghcr.io/${REPO}-migrator:${IMAGE_TAG}"
 
