@@ -69,6 +69,8 @@ describe('OpenAPI document', () => {
         '/orders',
         '/orders/{id}',
         '/orders/{id}/cancel',
+        '/payments/stripe/create',
+        '/payments/stripe/webhook',
         '/payments/vnpay/create',
         '/payments/vnpay/ipn',
         '/payments/vnpay/return',
