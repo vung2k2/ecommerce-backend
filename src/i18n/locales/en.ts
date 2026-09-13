@@ -65,8 +65,8 @@ export const enMessages = {
   'errors.orderCannotCancel': 'Order cannot be cancelled in its current status',
   'errors.orderPaidCannotCancel': 'Paid online order cannot be cancelled directly. Please contact customer support.',
   'errors.orderInvalidStateTransition': 'Invalid order state transition',
-  'errors.orderVnPayAdminConfirmNotAllowed':
-    'VNPay orders cannot be confirmed manually by admin. Awaiting IPN webhook verification.',
+  'errors.orderOnlinePaymentAdminConfirmNotAllowed':
+    'Online payment orders cannot be confirmed manually by admin. Awaiting webhook verification.',
   'errors.orderCartEmpty': 'Shopping cart is empty',
   'errors.orderCartItemsUnavailable': 'Some items in the cart are no longer available',
   'errors.orderAddressRequired': 'Shipping address is required',

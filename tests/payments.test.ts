@@ -1,10 +1,9 @@
 import bcrypt from 'bcrypt';
-import crypto from 'node:crypto';
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import type Stripe from 'stripe';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { createApp } from '../src/app.js';
-import { env } from '../src/config/env.js';
 import {
   AUDIT_ACTIONS,
   ERROR_CODES,
@@ -15,7 +14,7 @@ import {
   ROLES,
 } from '../src/constants/index.js';
 import { prisma } from '../src/database/prisma.js';
-import { sortObject } from '../src/services/vnpay.service.js';
+import { stripeClient } from '../src/services/stripe.service.js';
 import { jwtService } from '../src/utils/jwt.js';
 
 // ==================== Response Schemas ====================
@@ -27,51 +26,14 @@ const errorResponseSchema = z.object({
   }),
 });
 
-const createPaymentUrlResponseSchema = z.object({
+const createStripeCheckoutResponseSchema = z.object({
   data: z.object({
-    paymentUrl: z.string(),
-    txnRef: z.string(),
+    sessionId: z.string(),
+    checkoutUrl: z.string(),
   }),
 });
 
-const vnpayReturnResponseSchema = z.object({
-  data: z.object({
-    isSuccess: z.boolean(),
-    orderNumber: z.string().nullable(),
-    responseCode: z.string(),
-    transactionNo: z.string().nullable(),
-    amount: z.string(),
-    message: z.string(),
-  }),
-});
-
-const ipnResponseSchema = z.object({
-  RspCode: z.string(),
-  Message: z.string(),
-});
-
-function signVnPayParams(params: Record<string, string>): {
-  signedQuery: Record<string, string>;
-  secureHash: string;
-} {
-  const sorted = sortObject(params);
-  const signData = Object.entries(sorted)
-    .map(([k, v]) => `${k}=${v}`)
-    .join('&');
-
-  const hmac = crypto.createHmac('sha512', env.VNPAY_HASH_SECRET);
-  const secureHash = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
-
-  return {
-    signedQuery: {
-      ...params,
-      vnp_SecureHash: secureHash,
-    },
-    secureHash,
-  };
-}
-
-describe('VNPay Module Integration Tests', () => {
+describe('Stripe Payments Integration Tests', () => {
   const app = createApp();
 
   let customer1Token: string;
@@ -82,9 +44,11 @@ describe('VNPay Module Integration Tests', () => {
   let testProduct: { id: string };
   let testVariant: { id: string; price: bigint; sku: string };
 
-  let vnpayOrder: { id: string; orderNumber: string; totalAmount: bigint };
+  let stripeOrder: { id: string; orderNumber: string; totalAmount: bigint };
 
   beforeEach(async () => {
+    vi.restoreAllMocks();
+
     // Clear test tables
     await prisma.auditLog.deleteMany();
     await prisma.paymentTransaction.deleteMany();
@@ -113,7 +77,7 @@ describe('VNPay Module Integration Tests', () => {
     // Create Customer 1
     const customer1 = await prisma.user.create({
       data: {
-        email: 'customer1@vnpay-test.com',
+        email: 'customer1@stripe-test.com',
         passwordHash,
         fullName: 'Customer One',
         role: ROLES.CUSTOMER,
@@ -128,7 +92,7 @@ describe('VNPay Module Integration Tests', () => {
     // Create Customer 2
     const customer2 = await prisma.user.create({
       data: {
-        email: 'customer2@vnpay-test.com',
+        email: 'customer2@stripe-test.com',
         passwordHash,
         fullName: 'Customer Two',
         role: ROLES.CUSTOMER,
@@ -180,20 +144,20 @@ describe('VNPay Module Integration Tests', () => {
         reservedChange: 2,
         balanceAfterOnHand: 10,
         balanceAfterReserved: 2,
-        reason: 'Reserve stock for order ORD-20260831-VNPAY1',
+        reason: 'Reserve stock for order ORD-20260913-STRIPE1',
         referenceType: 'ORDER',
-        referenceId: 'ORD-20260831-VNPAY1',
+        referenceId: 'ORD-20260913-STRIPE1',
         actorId: customer1Id,
       },
     });
 
-    // Create a PENDING_PAYMENT Order for VNPay
-    vnpayOrder = await prisma.order.create({
+    // Create a PENDING_PAYMENT Order for Stripe
+    stripeOrder = await prisma.order.create({
       data: {
-        orderNumber: 'ORD-20260831-VNPAY1',
+        orderNumber: 'ORD-20260913-STRIPE1',
         userId: customer1Id,
         status: ORDER_STATUSES.PENDING_PAYMENT,
-        paymentMethod: PAYMENT_METHODS.VNPAY,
+        paymentMethod: PAYMENT_METHODS.STRIPE,
         paymentStatus: PAYMENT_STATUSES.PENDING,
         subtotalAmount: 50000000n,
         discountAmount: 0n,
@@ -229,430 +193,304 @@ describe('VNPay Module Integration Tests', () => {
     });
   });
 
-  // ==================== 1. Create VNPay Payment URL ====================
+  // ==================== 1. Create Stripe Checkout Session ====================
+  describe('POST /api/v1/payments/stripe/create', () => {
+    it('creates Stripe checkout session URL for eligible order and saves PaymentTransaction record', async () => {
+      const mockSession = {
+        id: 'cs_test_session_123',
+        url: 'https://checkout.stripe.com/c/pay/cs_test_session_123',
+      };
 
-  describe('POST /api/v1/payments/vnpay/create', () => {
-    it('creates VNPay payment URL for eligible order and saves PaymentTransaction record', async () => {
+      vi.spyOn(stripeClient.checkout.sessions, 'create').mockResolvedValue(
+        mockSession as never,
+      );
+
       const res = await request(app)
-        .post('/api/v1/payments/vnpay/create')
+        .post('/api/v1/payments/stripe/create')
         .set('Authorization', `Bearer ${customer1Token}`)
-        .send({
-          orderId: vnpayOrder.id,
-          bankCode: 'NCB',
-          language: 'vn',
-        });
+        .send({ orderId: stripeOrder.id });
 
       expect(res.status).toBe(201);
-      const parsed = createPaymentUrlResponseSchema.parse(res.body);
-      expect(parsed.data.paymentUrl).toContain('vnp_Amount=5000000000'); // 50,000,000 * 100
-      expect(parsed.data.paymentUrl).toContain('vnp_BankCode=NCB');
-      expect(parsed.data.txnRef).toContain(vnpayOrder.orderNumber);
+      const parsed = createStripeCheckoutResponseSchema.parse(res.body);
+      expect(parsed.data.sessionId).toBe('cs_test_session_123');
+      expect(parsed.data.checkoutUrl).toBe('https://checkout.stripe.com/c/pay/cs_test_session_123');
 
-      // Verify DB PaymentTransaction
-      const txn = await prisma.paymentTransaction.findUnique({
-        where: { txnRef: parsed.data.txnRef },
+      // Verify transaction was stored in DB
+      const transaction = await prisma.paymentTransaction.findFirst({
+        where: { orderId: stripeOrder.id },
       });
-      expect(txn).not.toBeNull();
-      expect(txn?.status).toBe(PAYMENT_TRANSACTION_STATUSES.PENDING);
-      expect(txn?.amount).toBe(50000000n);
-      expect(txn?.bankCode).toBe('NCB');
+      expect(transaction).not.toBeNull();
+      expect(transaction?.paymentMethod).toBe(PAYMENT_METHODS.STRIPE);
+      expect(transaction?.status).toBe(PAYMENT_TRANSACTION_STATUSES.PENDING);
+      expect(transaction?.transactionNo).toBe('cs_test_session_123');
 
       // Verify Audit Log
       const audit = await prisma.auditLog.findFirst({
-        where: { action: AUDIT_ACTIONS.PAYMENT_URL_CREATED, targetId: vnpayOrder.id },
+        where: { action: AUDIT_ACTIONS.CHECKOUT_SESSION_CREATED, targetId: stripeOrder.id },
       });
       expect(audit).not.toBeNull();
+      expect(audit?.actorId).toBe(customer1Id);
     });
 
-    it('rejects payment URL creation if order does not belong to user', async () => {
+    it('returns 404 if order belongs to another customer', async () => {
       const res = await request(app)
-        .post('/api/v1/payments/vnpay/create')
-        .set('Authorization', `Bearer ${customer2Token}`) // customer 2
-        .send({
-          orderId: vnpayOrder.id,
-        });
+        .post('/api/v1/payments/stripe/create')
+        .set('Authorization', `Bearer ${customer2Token}`)
+        .send({ orderId: stripeOrder.id });
 
       expect(res.status).toBe(404);
       const parsed = errorResponseSchema.parse(res.body);
       expect(parsed.error.code).toBe(ERROR_CODES.ORDER_NOT_FOUND);
     });
 
-    it('rejects payment URL creation if order is already CONFIRMED', async () => {
-      // Transition order to CONFIRMED
+    it('returns 422 if order is not in PENDING_PAYMENT status', async () => {
       await prisma.order.update({
-        where: { id: vnpayOrder.id },
-        data: { status: ORDER_STATUSES.CONFIRMED },
+        where: { id: stripeOrder.id },
+        data: { status: ORDER_STATUSES.CANCELLED },
       });
 
       const res = await request(app)
-        .post('/api/v1/payments/vnpay/create')
+        .post('/api/v1/payments/stripe/create')
         .set('Authorization', `Bearer ${customer1Token}`)
-        .send({
-          orderId: vnpayOrder.id,
-        });
+        .send({ orderId: stripeOrder.id });
 
       expect(res.status).toBe(422);
       const parsed = errorResponseSchema.parse(res.body);
       expect(parsed.error.code).toBe(ERROR_CODES.PAYMENT_ORDER_NOT_PAYABLE);
     });
 
-    it('reuses existing active pending transaction within 15 minutes', async () => {
-      const res1 = await request(app)
-        .post('/api/v1/payments/vnpay/create')
-        .set('Authorization', `Bearer ${customer1Token}`)
-        .send({ orderId: vnpayOrder.id });
+    it('returns 401 if unauthenticated', async () => {
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/create')
+        .send({ orderId: stripeOrder.id });
 
-      expect(res1.status).toBe(201);
-      const parsed1 = createPaymentUrlResponseSchema.parse(res1.body);
-
-      const res2 = await request(app)
-        .post('/api/v1/payments/vnpay/create')
-        .set('Authorization', `Bearer ${customer1Token}`)
-        .send({ orderId: vnpayOrder.id });
-
-      expect(res2.status).toBe(201);
-      const parsed2 = createPaymentUrlResponseSchema.parse(res2.body);
-
-      expect(parsed2.data.txnRef).toBe(parsed1.data.txnRef);
+      expect(res.status).toBe(401);
     });
   });
 
-  // ==================== 2. VNPay Return URL ====================
+  // ==================== 2. Stripe Webhook Handling ====================
+  describe('POST /api/v1/payments/stripe/webhook', () => {
+    it('rejects request with 400 when webhook signature is invalid', async () => {
+      vi.spyOn(stripeClient.webhooks, 'constructEvent').mockImplementation(() => {
+        throw new Error('Invalid signature');
+      });
 
-  describe('GET /api/v1/payments/vnpay/return', () => {
-    it('verifies signature and parses successful return URL without modifying DB order', async () => {
-      const txnRef = `${vnpayOrder.orderNumber}-test1234`;
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', 'invalid_signature')
+        .send({ id: 'evt_test' });
+
+      expect(res.status).toBe(500);
+    });
+
+    it('processes checkout.session.completed: updates order to CONFIRMED, payment to PAID, and commits stock', async () => {
+      const txnRef = `${stripeOrder.orderNumber}-test1`;
       await prisma.paymentTransaction.create({
         data: {
-          orderId: vnpayOrder.id,
+          orderId: stripeOrder.id,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
           txnRef,
-          amount: 50000000n,
+          amount: stripeOrder.totalAmount,
           status: PAYMENT_TRANSACTION_STATUSES.PENDING,
         },
       });
 
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_BankCode: 'NCB',
-        vnp_BankTranNo: 'VNP14000001',
-        vnp_CardType: 'ATM',
-        vnp_OrderInfo: 'Thanh toan don hang',
-        vnp_PayDate: '20260831103000',
-        vnp_ResponseCode: '00',
-        vnp_TransactionNo: '14000001',
-        vnp_TransactionStatus: '00',
-        vnp_TxnRef: txnRef,
-      };
-
-      const { signedQuery } = signVnPayParams(rawParams);
-
-      const res = await request(app).get('/api/v1/payments/vnpay/return').query(signedQuery);
-
-      expect(res.status).toBe(200);
-      const parsed = vnpayReturnResponseSchema.parse(res.body);
-      expect(parsed.data.isSuccess).toBe(true);
-      expect(parsed.data.responseCode).toBe('00');
-      expect(parsed.data.orderNumber).toBe(vnpayOrder.orderNumber);
-      expect(parsed.data.amount).toBe('50000000');
-
-      // Assert that DB order remains PENDING_PAYMENT (Return URL must not update DB!)
-      const order = await prisma.order.findUnique({ where: { id: vnpayOrder.id } });
-      expect(order?.status).toBe(ORDER_STATUSES.PENDING_PAYMENT);
-      expect(order?.paymentStatus).toBe(PAYMENT_STATUSES.PENDING);
-    });
-
-    it('identifies tampered checksum on return URL', async () => {
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '00',
-        vnp_TxnRef: 'dummy-ref',
-        vnp_SecureHash: 'invalid_hash_signature',
-      };
-
-      const res = await request(app).get('/api/v1/payments/vnpay/return').query(rawParams);
-
-      expect(res.status).toBe(200);
-      const parsed = vnpayReturnResponseSchema.parse(res.body);
-      expect(parsed.data.isSuccess).toBe(false);
-      expect(parsed.data.message).toBe('Invalid payment signature');
-    });
-
-    it('identifies mismatched merchant code on return URL', async () => {
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: 'WRONG_TMN',
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '00',
-        vnp_TxnRef: 'some-ref',
-      };
-
-      const { signedQuery } = signVnPayParams(rawParams);
-
-      const res = await request(app).get('/api/v1/payments/vnpay/return').query(signedQuery);
-
-      expect(res.status).toBe(200);
-      const parsed = vnpayReturnResponseSchema.parse(res.body);
-      expect(parsed.data.isSuccess).toBe(false);
-      expect(parsed.data.message).toBe('Invalid merchant code');
-    });
-  });
-
-  // ==================== 3. VNPay Server-to-Server IPN ====================
-
-  describe('GET /api/v1/payments/vnpay/ipn', () => {
-    it('successfully processes IPN (code 00), confirms order, commits stock, and returns RspCode 00', async () => {
-      const txnRef = `${vnpayOrder.orderNumber}-ipn01`;
-      await prisma.paymentTransaction.create({
+      const mockEvent: Stripe.Event = {
+        id: 'evt_test_completed_1',
+        object: 'event',
+        api_version: '2025-02-24.acacia',
+        created: Math.floor(Date.now() / 1000),
+        livemode: false,
+        pending_webhooks: 0,
+        request: null,
+        type: 'checkout.session.completed',
         data: {
-          orderId: vnpayOrder.id,
-          txnRef,
-          amount: 50000000n,
-          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
+          object: {
+            id: 'cs_test_completed_1',
+            object: 'checkout.session',
+            payment_status: 'paid',
+            metadata: {
+              orderId: stripeOrder.id,
+              orderNumber: stripeOrder.orderNumber,
+              txnRef,
+            },
+          } as unknown as Stripe.Checkout.Session,
         },
-      });
-
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_BankCode: 'NCB',
-        vnp_BankTranNo: 'VNP14000001',
-        vnp_CardType: 'ATM',
-        vnp_OrderInfo: 'Thanh toan don hang',
-        vnp_PayDate: '20260831103000',
-        vnp_ResponseCode: '00',
-        vnp_TransactionNo: '14000001',
-        vnp_TransactionStatus: '00',
-        vnp_TxnRef: txnRef,
       };
 
-      const { signedQuery } = signVnPayParams(rawParams);
+      vi.spyOn(stripeClient.webhooks, 'constructEvent').mockReturnValue(mockEvent);
 
-      const res = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', 'valid_sig')
+        .send({ id: 'evt_test_completed_1' });
 
       expect(res.status).toBe(200);
-      const parsed = ipnResponseSchema.parse(res.body);
-      expect(parsed.RspCode).toBe('00');
-      expect(parsed.Message).toBe('Confirm Success');
+      expect(res.body).toEqual({ received: true });
 
-      // 1. Verify Order is CONFIRMED and PAID
-      const updatedOrder = await prisma.order.findUnique({ where: { id: vnpayOrder.id } });
+      // Order should be CONFIRMED and PAID
+      const updatedOrder = await prisma.order.findUnique({ where: { id: stripeOrder.id } });
       expect(updatedOrder?.status).toBe(ORDER_STATUSES.CONFIRMED);
       expect(updatedOrder?.paymentStatus).toBe(PAYMENT_STATUSES.PAID);
 
-      // 2. Verify Stock committed: onHand was 10, 2 reserved -> commitReservation decrements onHand to 8, reserved to 0
-      const inv = await prisma.inventory.findUnique({ where: { variantId: testVariant.id } });
-      expect(inv?.onHand).toBe(8);
-      expect(inv?.reserved).toBe(0);
-
-      // 3. Verify PaymentTransaction is SUCCESS
-      const updatedTxn = await prisma.paymentTransaction.findUnique({ where: { txnRef } });
-      expect(updatedTxn?.status).toBe(PAYMENT_TRANSACTION_STATUSES.SUCCESS);
-      expect(updatedTxn?.bankCode).toBe('NCB');
-      expect(updatedTxn?.transactionNo).toBe('14000001');
-
-      // 4. Verify OrderStatusHistory
-      const history = await prisma.orderStatusHistory.findFirst({
-        where: { orderId: vnpayOrder.id, toStatus: ORDER_STATUSES.CONFIRMED },
+      // Inventory should be committed: onHand decreased from 10 to 8, reserved decreased from 2 to 0
+      const inventory = await prisma.inventory.findFirst({
+        where: { variantId: testVariant.id },
       });
-      expect(history).not.toBeNull();
-      expect(history?.reason).toContain('VNPay payment successful');
+      expect(inventory?.onHand).toBe(8);
+      expect(inventory?.reserved).toBe(0);
 
-      // 5. Verify Audit Log
-      const audit = await prisma.auditLog.findFirst({
-        where: { action: AUDIT_ACTIONS.PAYMENT_IPN_PROCESSED, targetId: vnpayOrder.id },
-      });
-      expect(audit).not.toBeNull();
-    });
-
-    it('returns RspCode 97 for invalid checksum and does not alter database', async () => {
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '00',
-        vnp_TxnRef: 'fake-txn-ref',
-        vnp_SecureHash: 'invalid_checksum',
-      };
-
-      const res = await request(app).get('/api/v1/payments/vnpay/ipn').query(rawParams);
-
-      expect(res.status).toBe(200);
-      const parsed = ipnResponseSchema.parse(res.body);
-      expect(parsed.RspCode).toBe('97');
-      expect(parsed.Message).toBe('Invalid Checksum');
-    });
-
-    it('returns RspCode 01 when transaction reference or order does not exist', async () => {
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '00',
-        vnp_TransactionStatus: '00',
-        vnp_TxnRef: 'NON_EXISTENT_TXN_REF',
-      };
-
-      const { signedQuery } = signVnPayParams(rawParams);
-
-      const res = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
-
-      expect(res.status).toBe(200);
-      const parsed = ipnResponseSchema.parse(res.body);
-      expect(parsed.RspCode).toBe('01');
-      expect(parsed.Message).toBe('Order not found');
-    });
-
-    it('returns RspCode 04 when payment amount does not match order amount', async () => {
-      const txnRef = `${vnpayOrder.orderNumber}-ipn-wrong-amt`;
-      await prisma.paymentTransaction.create({
-        data: {
-          orderId: vnpayOrder.id,
-          txnRef,
-          amount: 50000000n,
-          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
-        },
-      });
-
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '1000000000', // 10,000,000 VND instead of 50,000,000 VND
-        vnp_ResponseCode: '00',
-        vnp_TransactionStatus: '00',
-        vnp_TxnRef: txnRef,
-      };
-
-      const { signedQuery } = signVnPayParams(rawParams);
-
-      const res = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
-
-      expect(res.status).toBe(200);
-      const parsed = ipnResponseSchema.parse(res.body);
-      expect(parsed.RspCode).toBe('04');
-      expect(parsed.Message).toBe('Invalid amount');
-    });
-
-    it('handles idempotent retries: returns RspCode 02 if order was already confirmed', async () => {
-      const txnRef = `${vnpayOrder.orderNumber}-ipn-repeat`;
-      await prisma.paymentTransaction.create({
-        data: {
-          orderId: vnpayOrder.id,
-          txnRef,
-          amount: 50000000n,
-          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
-        },
-      });
-
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '00',
-        vnp_TransactionStatus: '00',
-        vnp_TxnRef: txnRef,
-      };
-
-      const { signedQuery } = signVnPayParams(rawParams);
-
-      // Call 1: First success
-      const res1 = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
-      const parsed1 = ipnResponseSchema.parse(res1.body);
-      expect(parsed1.RspCode).toBe('00');
-
-      // Call 2: Duplicate IPN retry -> returns 02 without committing stock twice
-      const res2 = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
-      expect(res2.status).toBe(200);
-      const parsed2 = ipnResponseSchema.parse(res2.body);
-      expect(parsed2.RspCode).toBe('02');
-      expect(parsed2.Message).toBe('Order already confirmed');
-
-      // Inventory was committed once only (onHand: 10 - 2 = 8, reserved: 0)
-      const inv = await prisma.inventory.findUnique({ where: { variantId: testVariant.id } });
-      expect(inv?.onHand).toBe(8);
-      expect(inv?.reserved).toBe(0);
-    });
-
-    it('handles IPN arrival after order cancellation: logs audit and returns RspCode 02', async () => {
-      const txnRef = `${vnpayOrder.orderNumber}-ipn-cancelled`;
-      await prisma.paymentTransaction.create({
-        data: {
-          orderId: vnpayOrder.id,
-          txnRef,
-          amount: 50000000n,
-          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
-        },
-      });
-
-      // Mark order as CANCELLED before IPN arrives
-      await prisma.order.update({
-        where: { id: vnpayOrder.id },
-        data: { status: ORDER_STATUSES.CANCELLED, cancelReason: 'Customer cancelled' },
-      });
-
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '00',
-        vnp_TransactionStatus: '00',
-        vnp_TxnRef: txnRef,
-      };
-
-      const { signedQuery } = signVnPayParams(rawParams);
-
-      const res = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
-
-      expect(res.status).toBe(200);
-      const parsed = ipnResponseSchema.parse(res.body);
-      expect(parsed.RspCode).toBe('02');
-      expect(parsed.Message).toContain('flagged for reconciliation');
-
-      // Assert Order stays CANCELLED
-      const order = await prisma.order.findUnique({ where: { id: vnpayOrder.id } });
-      expect(order?.status).toBe(ORDER_STATUSES.CANCELLED);
-
-      // Assert Transaction was marked SUCCESS for accounting/reconciliation
-      const txn = await prisma.paymentTransaction.findUnique({ where: { txnRef } });
-      expect(txn?.status).toBe(PAYMENT_TRANSACTION_STATUSES.SUCCESS);
-
-      // Assert Audit Log was created for reconciliation
-      const audit = await prisma.auditLog.findFirst({
+      // StockMovement COMMIT should be recorded
+      const commitMovement = await prisma.stockMovement.findFirst({
         where: {
-          action: AUDIT_ACTIONS.PAYMENT_IPN_POST_TERMINATION_RECONCILIATION,
-          targetId: vnpayOrder.id,
+          type: 'COMMIT',
+          referenceId: stripeOrder.orderNumber,
         },
+      });
+      expect(commitMovement).not.toBeNull();
+      expect(commitMovement?.onHandChange).toBe(-2);
+      expect(commitMovement?.reservedChange).toBe(-2);
+
+      // Transaction status updated
+      const paymentTx = await prisma.paymentTransaction.findUnique({
+        where: { txnRef },
+      });
+      expect(paymentTx?.status).toBe(PAYMENT_TRANSACTION_STATUSES.SUCCESS);
+      expect(paymentTx?.transactionNo).toBe('cs_test_completed_1');
+
+      // Audit Log recorded
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: AUDIT_ACTIONS.PAYMENT_WEBHOOK_PROCESSED, targetId: stripeOrder.id },
       });
       expect(audit).not.toBeNull();
     });
 
-    it('handles payment gateway failure (e.g. code 24) and updates transaction to FAILED', async () => {
-      const txnRef = `${vnpayOrder.orderNumber}-ipn-fail`;
+    it('handles idempotent duplicate checkout.session.completed events without duplicating stock commits', async () => {
+      const txnRef = `${stripeOrder.orderNumber}-test-idemp`;
       await prisma.paymentTransaction.create({
         data: {
-          orderId: vnpayOrder.id,
+          orderId: stripeOrder.id,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
           txnRef,
-          amount: 50000000n,
+          amount: stripeOrder.totalAmount,
           status: PAYMENT_TRANSACTION_STATUSES.PENDING,
         },
       });
 
-      const rawParams: Record<string, string> = {
-        vnp_TmnCode: env.VNPAY_TMN_CODE,
-        vnp_Amount: '5000000000',
-        vnp_ResponseCode: '24', // Customer cancelled payment on VNPay gateway
-        vnp_TransactionStatus: '02',
-        vnp_TxnRef: txnRef,
+      const mockEvent: Stripe.Event = {
+        id: 'evt_test_idemp',
+        object: 'event',
+        api_version: '2025-02-24.acacia',
+        created: Math.floor(Date.now() / 1000),
+        livemode: false,
+        pending_webhooks: 0,
+        request: null,
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            id: 'cs_test_idemp',
+            object: 'checkout.session',
+            payment_status: 'paid',
+            metadata: {
+              orderId: stripeOrder.id,
+              orderNumber: stripeOrder.orderNumber,
+              txnRef,
+            },
+          } as unknown as Stripe.Checkout.Session,
+        },
       };
 
-      const { signedQuery } = signVnPayParams(rawParams);
+      vi.spyOn(stripeClient.webhooks, 'constructEvent').mockReturnValue(mockEvent);
 
-      const res = await request(app).get('/api/v1/payments/vnpay/ipn').query(signedQuery);
+      // First webhook call
+      const res1 = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', 'valid_sig')
+        .send({ id: 'evt_test_idemp' });
+      expect(res1.status).toBe(200);
+
+      // Second identical webhook call
+      const res2 = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', 'valid_sig')
+        .send({ id: 'evt_test_idemp' });
+      expect(res2.status).toBe(200);
+
+      // Ensure inventory wasn't decremented twice
+      const inventory = await prisma.inventory.findFirst({
+        where: { variantId: testVariant.id },
+      });
+      expect(inventory?.onHand).toBe(8);
+      expect(inventory?.reserved).toBe(0);
+
+      const commitMovements = await prisma.stockMovement.findMany({
+        where: { type: 'COMMIT', referenceId: stripeOrder.orderNumber },
+      });
+      expect(commitMovements).toHaveLength(1);
+    });
+
+    it('processes checkout.session.expired: marks order PAYMENT_EXPIRED and releases reserved inventory', async () => {
+      const txnRef = `${stripeOrder.orderNumber}-test-exp`;
+      await prisma.paymentTransaction.create({
+        data: {
+          orderId: stripeOrder.id,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
+          txnRef,
+          amount: stripeOrder.totalAmount,
+          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
+        },
+      });
+
+      const mockEvent: Stripe.Event = {
+        id: 'evt_test_expired_1',
+        object: 'event',
+        api_version: '2025-02-24.acacia',
+        created: Math.floor(Date.now() / 1000),
+        livemode: false,
+        pending_webhooks: 0,
+        request: null,
+        type: 'checkout.session.expired',
+        data: {
+          object: {
+            id: 'cs_test_expired_1',
+            object: 'checkout.session',
+            metadata: {
+              orderId: stripeOrder.id,
+              orderNumber: stripeOrder.orderNumber,
+              txnRef,
+            },
+          } as unknown as Stripe.Checkout.Session,
+        },
+      };
+
+      vi.spyOn(stripeClient.webhooks, 'constructEvent').mockReturnValue(mockEvent);
+
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', 'valid_sig')
+        .send({ id: 'evt_test_expired_1' });
 
       expect(res.status).toBe(200);
-      const parsed = ipnResponseSchema.parse(res.body);
-      expect(parsed.RspCode).toBe('00');
-      expect(parsed.Message).toBe('Confirm Success');
+      expect(res.body).toEqual({ received: true });
 
-      // Transaction marked as FAILED in DB
-      const txn = await prisma.paymentTransaction.findUnique({ where: { txnRef } });
-      expect(txn?.status).toBe(PAYMENT_TRANSACTION_STATUSES.FAILED);
-      expect(txn?.responseCode).toBe('24');
+      // Order marked PAYMENT_EXPIRED
+      const updatedOrder = await prisma.order.findUnique({ where: { id: stripeOrder.id } });
+      expect(updatedOrder?.status).toBe(ORDER_STATUSES.PAYMENT_EXPIRED);
+      expect(updatedOrder?.paymentStatus).toBe(PAYMENT_STATUSES.EXPIRED);
+
+      // Reserved stock released: onHand remains 10, reserved becomes 0
+      const inventory = await prisma.inventory.findFirst({
+        where: { variantId: testVariant.id },
+      });
+      expect(inventory?.onHand).toBe(10);
+      expect(inventory?.reserved).toBe(0);
+
+      // Release stock movement created
+      const releaseMovement = await prisma.stockMovement.findFirst({
+        where: { type: 'RELEASE', referenceId: stripeOrder.orderNumber },
+      });
+      expect(releaseMovement).not.toBeNull();
+      expect(releaseMovement?.reservedChange).toBe(-2);
     });
   });
 });

@@ -69,7 +69,7 @@ export const paymentRepository = {
     return client.paymentTransaction.create({
       data: {
         orderId: data.orderId,
-        paymentMethod: data.paymentMethod ?? 'VNPAY',
+        paymentMethod: data.paymentMethod ?? 'STRIPE',
         txnRef: data.txnRef,
         bankCode: data.bankCode ?? null,
         amount: data.amount,

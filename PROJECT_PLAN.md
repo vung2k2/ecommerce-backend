@@ -7,7 +7,7 @@ Xây dựng REST API cho cửa hàng bán thiết bị điện tử như máy t�
 - Thiết kế API và cơ sở dữ liệu quan hệ.
 - Authentication, authorization và quản lý phiên đăng nhập.
 - Catalog, biến thể sản phẩm, tồn kho, giỏ hàng, coupon và đơn hàng.
-- Thanh toán COD và VNPay Sandbox.
+- Thanh toán COD và Stripe.
 - Transaction, concurrency, idempotency, cache và background job.
 - Upload ảnh, logging, security, testing và API documentation.
 - Docker, CI/CD bằng GitHub Actions và triển khai cơ bản trên AWS.
@@ -22,11 +22,11 @@ Không chia kế hoạch theo ngày. Chọn một nhóm công việc, hoàn thà
 ## 2. Tiêu chí hoàn thành toàn dự án
 
 - Khách hàng có thể đăng ký, đăng nhập, xem sản phẩm, quản lý giỏ hàng, áp dụng coupon và checkout.
-- Hỗ trợ COD và thanh toán online qua VNPay Sandbox.
+- Hỗ trợ COD và thanh toán online qua Stripe.
 - Khách hàng theo dõi, hủy đơn hợp lệ và review sản phẩm đã nhận.
 - Admin hoặc nhân viên có quyền phù hợp quản lý catalog, variant, tồn kho, coupon, đơn hàng và review.
 - Hệ thống không bán vượt tồn kho khi có nhiều checkout đồng thời.
-- VNPay IPN được xác minh và xử lý idempotent.
+- Stripe Webhook được xác minh và xử lý idempotent.
 - Các API được mô tả bằng OpenAPI/Swagger.
 - Các domain quan trọng có unit, integration và end-to-end test.
 - Pull request phải qua CI; merge vào `main` tự động deploy lên AWS.
@@ -61,7 +61,7 @@ src/
   middlewares/     # Custom Express middlewares (validate, error, auth)
   utils/           # Hàm tiện ích (response, pagination, app-error)
   constants/       # Hằng số hệ thống dùng chung (roles, status)
-  services/        # Tích hợp dịch vụ bên thứ 3 (VNPay, S3, Email)
+  services/        # Tích hợp dịch vụ bên thứ 3 (Stripe, S3, Email)
   jobs/            # Background jobs & BullMQ queue processors
   routes/          # Router tổng hợp toàn ứng dụng
   docs/            # Swagger / OpenAPI documentation
@@ -98,7 +98,7 @@ route -> middleware -> controller -> service/use case -> repository -> database
 
 - Base path: `/api/v1`.
 - Database lưu thời gian theo UTC; chuyển timezone ở boundary cần thiết.
-- VNPay sử dụng `Asia/Ho_Chi_Minh` khi tạo timestamp theo contract.
+- Tiền tệ thanh toán Stripe sử dụng VND chuẩn (zero-decimal currency).
 - Tiền lưu bằng số nguyên VND `BIGINT`, không dùng số thực.
 - Giá trị tiền trong JSON trả dưới dạng chuỗi để tránh mất độ chính xác.
 - ID dùng UUID hoặc CUID thống nhất trong toàn hệ thống.
@@ -107,7 +107,7 @@ route -> middleware -> controller -> service/use case -> repository -> database
 - Error response có mã lỗi ổn định, message và request ID; không trả stack trace ở production.
 - Response hỗ trợ `Accept-Language: en|vi`, mặc định `en`; HTTP status, `error.code` và JSON contract không thay đổi theo locale, chỉ message dành cho người dùng được dịch tại HTTP boundary.
 - Mọi thay đổi schema đều có Prisma migration và dữ liệu seed phù hợp.
-- Không log password, token, cookie, database URL, AWS secret hoặc VNPay hash secret.
+- Không log password, token, cookie, database URL, AWS secret hoặc Stripe webhook secret.
 
 ## 5. Checklist triển khai
 
@@ -257,7 +257,7 @@ Acceptance criteria:
 - [x] Order item snapshot product name, SKU, options và unit price.
 - [x] Checkout chỉ dành cho user đăng nhập.
 - [x] Checkout chạy trong transaction phù hợp: validate cart, tính giá, coupon, reserve stock và tạo order.
-- [x] Hỗ trợ payment method `COD` và `STRIPE` (kèm `VNPAY`).
+- [x] Hỗ trợ payment method `COD` và `STRIPE`.
 - [x] Order state:
   - `PENDING_PAYMENT`
   - `CONFIRMED`
@@ -269,7 +269,7 @@ Acceptance criteria:
 - [x] Payment state: `PENDING`, `PAID`, `FAILED`, `EXPIRED`.
 - [x] State transition được kiểm soát bằng domain service/state machine.
 - [x] COD xác nhận order ngay sau checkout hợp lệ.
-- [x] Stripe/VNPay tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
+- [x] Stripe tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
 - [ ] BullMQ job hết hạn order và giải phóng reservation. (Sẽ tích hợp cùng Redis/BullMQ worker)
 - [x] Khách chỉ hủy order trước khi processing.
 - [x] Admin chuyển order qua các fulfillment state hợp lệ.
@@ -279,13 +279,13 @@ Acceptance criteria:
 
 - Order lưu snapshot đầy đủ (tên sản phẩm, SKU, options, đơn giá, địa chỉ giao hàng), không bị thay đổi khi catalog chỉnh sửa sau này.
 - Checkout (validate cart, tính giá, áp coupon, reserve stock, tạo order) thực thi atomically trong một database transaction.
-- COD tạo đơn ở trạng thái `CONFIRMED`; Stripe/VNPay tạo đơn ở trạng thái `PENDING_PAYMENT` và giữ tồn kho có thời hạn.
+- COD tạo đơn ở trạng thái `CONFIRMED`; Stripe tạo đơn ở trạng thái `PENDING_PAYMENT` và giữ tồn kho có thời hạn.
 - State machine kiểm soát chặt chẽ: không thể nhảy cóc hoặc đảo ngược trạng thái đơn hàng trái business rules.
 - User chỉ xem và thao tác trên đơn hàng của chính mình; khách hàng chỉ được hủy đơn trước khi đơn chuyển sang `PROCESSING`.
 - Chỉ các trạng thái hợp lệ mới được hủy; retry cancel đơn hàng không hoàn kho 2 lần.
 - BullMQ job xử lý đơn hàng hết hạn thanh toán an toàn, tự động hủy đơn và giải phóng stock reservation.
 
-### 5.7. Stripe Payment Gateway (Checkout & Webhooks) & VNPay
+### 5.7. Stripe Payment Gateway (Checkout & Webhooks)
 
 - [x] Lưu cấu hình bảo mật `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` trong `.env`.
 - [x] Tạo phiên Stripe Checkout Session với số tiền VND chuẩn (zero-decimal currency), `client_reference_id`, line items và metadata.
@@ -327,7 +327,7 @@ Acceptance criteria:
 - [x] Setup sẵn OpenAPI document và Swagger UI tại `/docs` sử dụng `@asteasolutions/zod-to-openapi` làm tiêu chuẩn định nghĩa OpenAPI (Single Source of Truth).
 - [ ] Khi xây dựng xong API nào, mô tả ngay endpoint, schema, authentication và error codes của API đó thông qua Registry và Zod Schema.
 - [ ] Mô tả pagination, filter, sort và các enum trạng thái.
-- [ ] Thêm ví dụ request/response cho checkout và VNPay.
+- [ ] Thêm ví dụ request/response cho checkout và Stripe.
 - [ ] Viết README hướng dẫn local setup, migration, seed, test và Docker.
 - [ ] Viết runbook deploy, rollback, backup, restore và troubleshooting.
 - [ ] Cung cấp `.env.example` không chứa secret.
@@ -374,9 +374,6 @@ POST   /api/v1/orders/:id/cancel
 
 POST   /api/v1/payments/stripe/create
 POST   /api/v1/payments/stripe/webhook
-POST   /api/v1/payments/vnpay/create
-GET    /api/v1/payments/vnpay/return
-GET    /api/v1/payments/vnpay/ipn
 
 GET    /api/v1/products/:productId/reviews
 POST   /api/v1/products/:productId/reviews
@@ -414,7 +411,7 @@ Prefix `/admin` biểu thị nhóm API vận hành, không có nghĩa chỉ role
 - Order/payment state machine.
 - Inventory reservation rules.
 - JWT và refresh-token rotation/reuse detection.
-- VNPay parameter sorting, signing và signature verification.
+- Stripe session creation và webhook signature verification.
 - Job idempotency và expiration rules.
 
 ### Integration tests
@@ -429,7 +426,7 @@ Prefix `/admin` biểu thị nhóm API vận hành, không có nghĩa chỉ role
 ### End-to-end tests
 
 - Register -> login -> cart -> COD checkout -> fulfillment -> review.
-- Register -> cart -> VNPay checkout -> valid IPN -> paid order.
+- Register -> cart -> Stripe checkout -> valid webhook -> paid order.
 - User không xem/sửa dữ liệu của user khác.
 - Admin/staff authorization, permission enforcement và catalog/order operations.
 
@@ -438,7 +435,7 @@ Prefix `/admin` biểu thị nhóm API vận hành, không có nghĩa chỉ role
 - Missing, expired, revoked hoặc malformed token.
 - Sai role, thiếu permission, staff bị vô hiệu hóa, invalid schema, oversized body và rate limit.
 - Staff có nhiều permission, bị thu hồi permission và không thể tự nâng quyền.
-- VNPay: sai signature, sai amount, callback trùng, order hết hạn và callback sai thứ tự.
+- Stripe: sai signature, callback trùng, order hết hạn và callback sai thứ tự.
 - PostgreSQL/Redis tạm mất kết nối và readiness phản ánh đúng trạng thái.
 - Nhiều request mua SKU cuối cùng không làm tồn kho âm.
 
@@ -514,7 +511,7 @@ Một chức năng chỉ được đánh dấu hoàn thành khi:
 - Microservices, event streaming hoặc Kubernetes.
 - Recommendation engine, chat và search engine chuyên dụng.
 - Tích hợp hãng giao vận thật hoặc hóa đơn điện tử.
-- VNPay production, refund online và quy trình đổi trả phức tạp.
+- Stripe production, refund online và quy trình đổi trả phức tạp.
 - Password reset/email thật trong phiên bản đầu.
 - Data warehouse hoặc dashboard phân tích chuyên sâu.
 

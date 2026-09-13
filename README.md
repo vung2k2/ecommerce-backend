@@ -10,7 +10,7 @@
 [![AWS](https://img.shields.io/badge/AWS-EC2_&_S3-FF9900?style=flat-square&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-A modular monolith RESTful backend API for an electronics e-commerce store (computers, phones, accessories), covering authentication, catalog, inventory concurrency locking, shopping cart, coupons, checkout, VNPay Sandbox payments, and automated CI/CD on AWS.
+A modular monolith RESTful backend API for an electronics e-commerce store (computers, phones, accessories), covering authentication, catalog, inventory concurrency locking, shopping cart, coupons, checkout, Stripe payments (Checkout Sessions & Webhooks), and automated CI/CD on AWS.
 
 ## 🛠️ Tech Stack
 
@@ -59,7 +59,7 @@ ecommerce-backend/
 │   │   ├── carts/                 # Shopping cart management & live stock checks
 │   │   ├── coupons/               # Discount coupons (percentage & fixed amount, quotas)
 │   │   ├── orders/                # Order lifecycle state machine, atomic checkout
-│   │   ├── payments/              # Payment gateways (COD & VNPay PAY 2.1.0 with IPN)
+│   │   ├── payments/              # Payment gateways (COD & Stripe Checkout Sessions & Webhooks)
 │   │   └── reviews/               # Product reviews & admin moderation
 │   ├── routes/                    # Aggregate root API routes (/api/v1)
 │   ├── utils/                     # Utility helpers (API response formatting, pagination)

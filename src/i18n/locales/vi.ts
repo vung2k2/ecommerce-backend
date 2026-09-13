@@ -68,8 +68,8 @@ export const viMessages: Record<MessageKey, string> = {
   'errors.orderCannotCancel': 'Không thể hủy đơn hàng ở trạng thái hiện tại',
   'errors.orderPaidCannotCancel': 'Đơn hàng trực tuyến đã thanh toán không thể tự hủy. Vui lòng liên hệ bộ phận hỗ trợ.',
   'errors.orderInvalidStateTransition': 'Chuyển đổi trạng thái đơn hàng không hợp lệ',
-  'errors.orderVnPayAdminConfirmNotAllowed':
-    'Admin không thể xác nhận thủ công đơn hàng VNPay. Vui lòng chờ webhook IPN xác thực thanh toán.',
+  'errors.orderOnlinePaymentAdminConfirmNotAllowed':
+    'Admin không thể xác nhận thủ công đơn hàng thanh toán trực tuyến. Vui lòng chờ webhook xác thực thanh toán.',
   'errors.orderCartEmpty': 'Giỏ hàng đang trống',
   'errors.orderCartItemsUnavailable': 'Một số sản phẩm trong giỏ hàng không còn khả dụng',
   'errors.orderAddressRequired': 'Địa chỉ giao hàng là bắt buộc',

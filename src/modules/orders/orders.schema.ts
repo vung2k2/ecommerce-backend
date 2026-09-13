@@ -19,8 +19,8 @@ export const checkoutSchema = z.object({
     .uuid('validation.addressIdUuid')
     .openapi({ example: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', description: 'Shipping address UUID' }),
   paymentMethod: z
-    .enum([PAYMENT_METHODS.COD, PAYMENT_METHODS.VNPAY, PAYMENT_METHODS.STRIPE], { message: 'validation.paymentMethodRequired' })
-    .openapi({ example: 'STRIPE', description: 'Payment method (COD, VNPAY, or STRIPE)' }),
+    .enum([PAYMENT_METHODS.COD, PAYMENT_METHODS.STRIPE], { message: 'validation.paymentMethodRequired' })
+    .openapi({ example: 'STRIPE', description: 'Payment method (COD or STRIPE)' }),
   couponCode: z
     .string()
     .trim()

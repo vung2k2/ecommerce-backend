@@ -262,7 +262,7 @@ export const orderService = {
           })),
           initialHistoryReason: isCod
             ? 'Order placed via COD and auto-confirmed'
-            : 'Order placed via VNPay, awaiting payment',
+            : 'Order placed via Stripe, awaiting payment',
           actorId: userId,
         },
         tx,
@@ -357,7 +357,7 @@ export const orderService = {
         throw new AppError(422, ERROR_CODES.ORDER_CANNOT_CANCEL);
       }
 
-      // 2b. If order has already been PAID online (e.g. VNPay), customer cannot self-cancel
+      // 2b. If order has already been PAID online (e.g. Stripe), customer cannot self-cancel
       if (order.paymentStatus === PAYMENT_STATUSES.PAID) {
         throw new AppError(422, ERROR_CODES.ORDER_PAID_CANNOT_CANCEL);
       }
@@ -511,7 +511,7 @@ export const orderService = {
         order.status === ORDER_STATUSES.PENDING_PAYMENT &&
         dto.status === ORDER_STATUSES.CONFIRMED
       ) {
-        throw new AppError(422, ERROR_CODES.ORDER_VNPAY_ADMIN_CONFIRM_NOT_ALLOWED);
+        throw new AppError(422, ERROR_CODES.ORDER_ONLINE_PAYMENT_ADMIN_CONFIRM_NOT_ALLOWED);
       }
 
       let nextPaymentStatus: PaymentStatus | undefined;

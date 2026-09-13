@@ -375,23 +375,23 @@ describe('Order & Checkout Module Integration Tests', () => {
     });
   });
 
-  // ==================== 2. Checkout with VNPay ====================
+  // ==================== 2. Checkout with Stripe ====================
 
-  describe('POST /api/v1/checkout - VNPay Flow', () => {
-    it('successfully checks out with VNPay, creates PENDING_PAYMENT order, and reserves stock', async () => {
+  describe('POST /api/v1/checkout - Stripe Flow', () => {
+    it('successfully checks out with Stripe, creates PENDING_PAYMENT order, and reserves stock', async () => {
       // Add items to cart
       await request(app)
         .post('/api/v1/cart/items')
         .set('Authorization', `Bearer ${customer1Token}`)
         .send({ variantId: testVariant2.id, quantity: 3 });
 
-      // Checkout via VNPay
+      // Checkout via Stripe
       const res = await request(app)
         .post('/api/v1/checkout')
         .set('Authorization', `Bearer ${customer1Token}`)
         .send({
           addressId: customer1AddressId,
-          paymentMethod: PAYMENT_METHODS.VNPAY,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
         });
 
       expect(res.status).toBe(201);
@@ -399,7 +399,7 @@ describe('Order & Checkout Module Integration Tests', () => {
       const order = parsed.data.order;
 
       expect(order.status).toBe(ORDER_STATUSES.PENDING_PAYMENT);
-      expect(order.paymentMethod).toBe(PAYMENT_METHODS.VNPAY);
+      expect(order.paymentMethod).toBe(PAYMENT_METHODS.STRIPE);
       expect(order.paymentStatus).toBe(PAYMENT_STATUSES.PENDING);
       expect(order.totalAmount).toBe('120000000');
 
@@ -627,7 +627,7 @@ describe('Order & Checkout Module Integration Tests', () => {
 
   describe('POST /api/v1/orders/:id/cancel', () => {
     it('allows customer to cancel PENDING_PAYMENT order and releases reserved stock', async () => {
-      // VNPay checkout (reserves 2 units)
+      // Stripe checkout (reserves 2 units)
       await request(app)
         .post('/api/v1/cart/items')
         .set('Authorization', `Bearer ${customer1Token}`)
@@ -638,7 +638,7 @@ describe('Order & Checkout Module Integration Tests', () => {
         .set('Authorization', `Bearer ${customer1Token}`)
         .send({
           addressId: customer1AddressId,
-          paymentMethod: PAYMENT_METHODS.VNPAY,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
         });
 
       const parsedCheckout = checkoutResponseSchema.parse(checkoutRes.body);
@@ -828,8 +828,8 @@ describe('Order & Checkout Module Integration Tests', () => {
       expect(parsedError.error.code).toBe(ERROR_CODES.ORDER_INVALID_STATE_TRANSITION);
     });
 
-    it('rejects admin manually confirming VNPay order from PENDING_PAYMENT to CONFIRMED', async () => {
-      // Place VNPay order
+    it('rejects admin manually confirming online payment order from PENDING_PAYMENT to CONFIRMED', async () => {
+      // Place Stripe order
       await request(app)
         .post('/api/v1/cart/items')
         .set('Authorization', `Bearer ${customer1Token}`)
@@ -840,13 +840,13 @@ describe('Order & Checkout Module Integration Tests', () => {
         .set('Authorization', `Bearer ${customer1Token}`)
         .send({
           addressId: customer1AddressId,
-          paymentMethod: PAYMENT_METHODS.VNPAY,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
         });
 
       const parsedCheckout = checkoutResponseSchema.parse(checkoutRes.body);
       const orderId = parsedCheckout.data.order.id;
 
-      // Admin tries to manually confirm VNPay order
+      // Admin tries to manually confirm online payment order
       const confirmRes = await request(app)
         .patch(`/api/v1/admin/orders/${orderId}/status`)
         .set('Authorization', `Bearer ${staffTokenWithOrders}`)
@@ -855,12 +855,12 @@ describe('Order & Checkout Module Integration Tests', () => {
       expect(confirmRes.status).toBe(422);
       const parsedError = errorResponseSchema.parse(confirmRes.body);
       expect(parsedError.error.code).toBe(
-        ERROR_CODES.ORDER_VNPAY_ADMIN_CONFIRM_NOT_ALLOWED,
+        ERROR_CODES.ORDER_ONLINE_PAYMENT_ADMIN_CONFIRM_NOT_ALLOWED,
       );
     });
 
     it('transitions order to PAYMENT_EXPIRED, releases stock, coupon, and expires payment transactions', async () => {
-      // Place VNPay order with coupon
+      // Place Stripe order with coupon
       const coupon = await prisma.coupon.create({
         data: {
           code: 'EXPIRINGCOUPON',
@@ -885,7 +885,7 @@ describe('Order & Checkout Module Integration Tests', () => {
         .set('Authorization', `Bearer ${customer1Token}`)
         .send({
           addressId: customer1AddressId,
-          paymentMethod: PAYMENT_METHODS.VNPAY,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
           couponCode: 'EXPIRINGCOUPON',
         });
 

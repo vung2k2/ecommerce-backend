@@ -73,7 +73,8 @@ const errorMessageKeys = {
   [ERROR_CODES.ORDER_CANNOT_CANCEL]: 'errors.orderCannotCancel',
   [ERROR_CODES.ORDER_PAID_CANNOT_CANCEL]: 'errors.orderPaidCannotCancel',
   [ERROR_CODES.ORDER_INVALID_STATE_TRANSITION]: 'errors.orderInvalidStateTransition',
-  [ERROR_CODES.ORDER_VNPAY_ADMIN_CONFIRM_NOT_ALLOWED]: 'errors.orderVnPayAdminConfirmNotAllowed',
+  [ERROR_CODES.ORDER_ONLINE_PAYMENT_ADMIN_CONFIRM_NOT_ALLOWED]:
+    'errors.orderOnlinePaymentAdminConfirmNotAllowed',
   [ERROR_CODES.ORDER_CART_EMPTY]: 'errors.orderCartEmpty',
   [ERROR_CODES.ORDER_CART_ITEMS_UNAVAILABLE]: 'errors.orderCartItemsUnavailable',
   [ERROR_CODES.ORDER_ADDRESS_REQUIRED]: 'errors.orderAddressRequired',
