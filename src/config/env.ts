@@ -22,6 +22,11 @@ const envSchema = z
     VNPAY_HASH_SECRET: z.string().default('RA3K642FH3VOX9AJSKGYY479QJ4D3YQ6'),
     VNPAY_PAY_URL: z.url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
     VNPAY_RETURN_URL: z.url().default('http://localhost:3000/api/v1/payments/vnpay/return'),
+    STRIPE_SECRET_KEY: z.string().default('sk_test_placeholder'),
+    STRIPE_PUBLISHABLE_KEY: z.string().default('pk_test_placeholder'),
+    STRIPE_WEBHOOK_SECRET: z.string().default('whsec_placeholder'),
+    STRIPE_SUCCESS_URL: z.url().default('http://localhost:3000/api/v1/payments/stripe/success'),
+    STRIPE_CANCEL_URL: z.url().default('http://localhost:3000/api/v1/payments/stripe/cancel'),
   })
   .refine((data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',

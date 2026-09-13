@@ -101,6 +101,28 @@ export const paymentRepository = {
     });
   },
 
+  async findByTransactionNo(
+    transactionNo: string,
+    tx?: PrismaClientOrTx,
+  ): Promise<PaymentTransactionRecord | null> {
+    const client = tx ?? prisma;
+    return client.paymentTransaction.findFirst({
+      where: { transactionNo },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+            userId: true,
+            status: true,
+            paymentStatus: true,
+            totalAmount: true,
+          },
+        },
+      },
+    });
+  },
+
   async updatePaymentTransaction(
     id: string,
     data: UpdatePaymentTransactionData,

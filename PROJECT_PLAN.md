@@ -257,7 +257,7 @@ Acceptance criteria:
 - [x] Order item snapshot product name, SKU, options và unit price.
 - [x] Checkout chỉ dành cho user đăng nhập.
 - [x] Checkout chạy trong transaction phù hợp: validate cart, tính giá, coupon, reserve stock và tạo order.
-- [x] Hỗ trợ payment method `COD` và `VNPAY`.
+- [x] Hỗ trợ payment method `COD` và `STRIPE` (kèm `VNPAY`).
 - [x] Order state:
   - `PENDING_PAYMENT`
   - `CONFIRMED`
@@ -269,7 +269,7 @@ Acceptance criteria:
 - [x] Payment state: `PENDING`, `PAID`, `FAILED`, `EXPIRED`.
 - [x] State transition được kiểm soát bằng domain service/state machine.
 - [x] COD xác nhận order ngay sau checkout hợp lệ.
-- [x] VNPay tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
+- [x] Stripe/VNPay tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
 - [ ] BullMQ job hết hạn order và giải phóng reservation. (Sẽ tích hợp cùng Redis/BullMQ worker)
 - [x] Khách chỉ hủy order trước khi processing.
 - [x] Admin chuyển order qua các fulfillment state hợp lệ.
@@ -279,40 +279,31 @@ Acceptance criteria:
 
 - Order lưu snapshot đầy đủ (tên sản phẩm, SKU, options, đơn giá, địa chỉ giao hàng), không bị thay đổi khi catalog chỉnh sửa sau này.
 - Checkout (validate cart, tính giá, áp coupon, reserve stock, tạo order) thực thi atomically trong một database transaction.
-- COD tạo đơn ở trạng thái `CONFIRMED`; VNPay tạo đơn ở trạng thái `PENDING_PAYMENT` và giữ tồn kho có thời hạn.
+- COD tạo đơn ở trạng thái `CONFIRMED`; Stripe/VNPay tạo đơn ở trạng thái `PENDING_PAYMENT` và giữ tồn kho có thời hạn.
 - State machine kiểm soát chặt chẽ: không thể nhảy cóc hoặc đảo ngược trạng thái đơn hàng trái business rules.
 - User chỉ xem và thao tác trên đơn hàng của chính mình; khách hàng chỉ được hủy đơn trước khi đơn chuyển sang `PROCESSING`.
 - Chỉ các trạng thái hợp lệ mới được hủy; retry cancel đơn hàng không hoàn kho 2 lần.
 - BullMQ job xử lý đơn hàng hết hạn thanh toán an toàn, tự động hủy đơn và giải phóng stock reservation.
 
-### 5.7. VNPay Sandbox PAY 2.1.0
+### 5.7. Stripe Payment Gateway (Checkout & Webhooks) & VNPay
 
-- [x] Đăng ký thông tin Sandbox và lưu `vnp_TmnCode`, `vnp_HashSecret` bằng secret configuration.
-- [x] Tạo `vnp_TxnRef` duy nhất, không trùng trong ngày.
-- [x] Tạo payment URL với tham số được sort và ký HMAC-SHA512.
-- [x] Amount lấy từ order trong database và nhân 100 khi gửi VNPay.
-- [x] Thiết lập thời điểm tạo/hết hạn theo `Asia/Ho_Chi_Minh`.
-- [x] Return URL xác minh chữ ký và chỉ trả kết quả cho client.
-- [x] Không đánh dấu thanh toán thành công chỉ dựa vào Return URL.
-- [x] IPN là nguồn server-to-server cập nhật payment/order.
-- [x] IPN kiểm tra signature, merchant, transaction reference, amount, response code và transaction status.
-- [x] Lưu payment transaction/event phục vụ audit, loại bỏ dữ liệu nhạy cảm.
-- [x] Dùng unique constraint và database transaction chống callback trùng.
-- [x] Trả đúng `RspCode` và `Message` cho trường hợp thành công, sai checksum, không tìm thấy order, sai amount và order đã xử lý.
-- [x] Xử lý callback đến sau khi order đã hết hạn theo policy rõ ràng và có audit.
-- [x] Public IPN sử dụng hostname HTTPS hợp lệ.
+- [x] Lưu cấu hình bảo mật `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` trong `.env`.
+- [x] Tạo phiên Stripe Checkout Session với số tiền VND chuẩn (zero-decimal currency), `client_reference_id`, line items và metadata.
+- [x] Webhook là nguồn server-to-server xác nhận cập nhật payment/order.
+- [x] Webhook xác minh chữ ký bảo mật `stripe-signature` với raw body buffer.
+- [x] Sự kiện `checkout.session.completed` cập nhật atomically: payment `PAID`, order `CONFIRMED`, và commit stock reservation.
+- [x] Sự kiện `checkout.session.expired` giải phóng stock reservation và chuyển đơn hàng sang `PAYMENT_EXPIRED`.
+- [x] Webhook trùng lặp được xử lý idempotent (dùng database transaction & status check), không cập nhật đơn hàng hoặc commit kho lần 2.
+- [x] Webhook hợp lệ gửi đến sau khi order đã bị hủy/hết hạn được xử lý an toàn (ghi nhận audit record phục vụ đối soát, không đảo ngược đơn hàng sai luật).
+- [x] Dữ liệu audit log không chứa secret key hoặc thông tin thẻ nhạy cảm.
 
 Acceptance criteria:
 
-- Callback giả mạo, sai signature, sai merchant, sai transaction reference hoặc sai amount đều trả đúng `RspCode` và không thay đổi database.
-- Amount gửi VNPay được nhân 100 theo contract; timestamp tạo/hết hạn tuân thủ timezone `Asia/Ho_Chi_Minh`.
-- Return URL chỉ hiển thị kết quả cho người dùng; chỉ IPN hợp lệ mới là nguồn server-to-server xác nhận thanh toán.
-- IPN trùng lặp được xử lý idempotent (dùng unique constraint & transaction), không cập nhật đơn hàng lần 2.
-- IPN thành công cập nhật atomically: payment `PAID`, order `CONFIRMED`, và commit stock reservation.
-- IPN hợp lệ gửi đến sau khi order đã bị hủy/hết hạn được xử lý theo policy rõ ràng (ghi nhận audit record phục vụ đối soát, không đảo ngược đơn hàng sai luật).
-- Dữ liệu audit log không chứa hash secret hoặc thông tin thẻ nhạy cảm.
+- Webhook giả mạo hoặc sai chữ ký signature bị từ chối ngay tại boundary.
+- Checkout Session phản hồi URL chuyển hướng cho client; Webhook là nguồn duy nhất xác nhận thanh toán thành công server-to-server.
+- Webhook trùng lặp không gây partial commit hoặc trừ kho 2 lần.
+- Dữ liệu thẻ và secret key được bảo vệ tuyệt đối không lưu trong database hay log.
 
-Tài liệu tham chiếu: [VNPay Sandbox PAY](https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.html).
 
 ### 5.8. Review và admin/staff reporting
 
@@ -381,6 +372,8 @@ GET    /api/v1/orders
 GET    /api/v1/orders/:id
 POST   /api/v1/orders/:id/cancel
 
+POST   /api/v1/payments/stripe/create
+POST   /api/v1/payments/stripe/webhook
 POST   /api/v1/payments/vnpay/create
 GET    /api/v1/payments/vnpay/return
 GET    /api/v1/payments/vnpay/ipn

@@ -505,9 +505,9 @@ export const orderService = {
         throw new AppError(422, ERROR_CODES.ORDER_INVALID_STATE_TRANSITION);
       }
 
-      // 2b. Invariant: Admin cannot manually confirm VNPay orders that are awaiting payment
+      // 2b. Invariant: Admin cannot manually confirm online payment orders that are awaiting payment
       if (
-        order.paymentMethod === PAYMENT_METHODS.VNPAY &&
+        order.paymentMethod !== PAYMENT_METHODS.COD &&
         order.status === ORDER_STATUSES.PENDING_PAYMENT &&
         dto.status === ORDER_STATUSES.CONFIRMED
       ) {

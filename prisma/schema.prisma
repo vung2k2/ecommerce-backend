@@ -45,6 +45,7 @@ enum OrderStatus {
 enum PaymentMethod {
   COD
   VNPAY
+  STRIPE
 }
 
 enum PaymentStatus {
@@ -420,7 +421,7 @@ model OrderStatusHistory {
 model PaymentTransaction {
   id                String                   @id @default(uuid()) @db.Uuid
   orderId           String                   @map("order_id") @db.Uuid
-  paymentMethod     PaymentMethod            @default(VNPAY) @map("payment_method")
+  paymentMethod     PaymentMethod            @default(STRIPE) @map("payment_method")
   txnRef            String                   @unique @map("txn_ref") @db.VarChar(100)
   bankCode          String?                  @map("bank_code") @db.VarChar(50)
   bankTranNo        String?                  @map("bank_tran_no") @db.VarChar(255)

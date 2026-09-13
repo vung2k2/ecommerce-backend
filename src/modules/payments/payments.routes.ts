@@ -11,6 +11,9 @@ import { paymentController } from './payments.controller.js';
 import {
   createPaymentUrlResponseSchema,
   createPaymentUrlSchema,
+  createStripeCheckoutResponseSchema,
+  createStripeCheckoutSchema,
+  stripeWebhookResponseSchema,
   vnpayIpnResponseSchema,
   vnpayReturnQuerySchema,
   vnpayReturnResponseSchema,
@@ -19,6 +22,18 @@ import {
 export const paymentsRouter = Router();
 
 //#region Routes
+
+paymentsRouter.post(
+  '/stripe/create',
+  requireAuth,
+  validateBody(createStripeCheckoutSchema),
+  paymentController.createStripeCheckout,
+);
+
+paymentsRouter.post(
+  '/stripe/webhook',
+  paymentController.handleStripeWebhook,
+);
 
 paymentsRouter.post(
   '/vnpay/create',
@@ -41,6 +56,53 @@ paymentsRouter.get(
 //#endregion
 
 //#region Docs
+
+registry.registerPath({
+  path: '/payments/stripe/create',
+  method: 'post',
+  summary: 'Generate Stripe Checkout Session URL for order',
+  tags: ['Payments'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: createStripeCheckoutSchema,
+        },
+      },
+      required: true,
+    },
+  },
+  responses: {
+    201: {
+      description: 'Stripe Checkout Session URL generated successfully',
+      content: {
+        'application/json': {
+          schema: createSuccessResponseSchema(createStripeCheckoutResponseSchema),
+        },
+      },
+    },
+    404: errorResponse(ERROR_CODES.ORDER_NOT_FOUND),
+    422: errorResponse(ERROR_CODES.PAYMENT_ORDER_NOT_PAYABLE),
+  },
+});
+
+registry.registerPath({
+  path: '/payments/stripe/webhook',
+  method: 'post',
+  summary: 'Stripe webhook event listener callback',
+  tags: ['Payments'],
+  responses: {
+    200: {
+      description: 'Stripe webhook event acknowledged',
+      content: {
+        'application/json': {
+          schema: stripeWebhookResponseSchema,
+        },
+      },
+    },
+  },
+});
 
 registry.registerPath({
   path: '/payments/vnpay/create',

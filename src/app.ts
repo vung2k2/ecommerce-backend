@@ -53,8 +53,15 @@ export function createApp() {
   // Chỉ cho phép các frontend đã cấu hình gọi API và gửi cookie xác thực.
   app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
 
-  // Parse JSON/form body và giới hạn kích thước.
-  app.use(express.json({ limit: '1mb' }));
+  // Parse JSON/form body và giới hạn kích thước, lưu raw buffer phục vụ Stripe Webhook verification.
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        (req as unknown as { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 
   // Parse Cookie header thành request.cookies.

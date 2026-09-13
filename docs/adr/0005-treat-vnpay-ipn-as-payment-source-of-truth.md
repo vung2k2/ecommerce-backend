@@ -1,10 +1,10 @@
 # ADR-0005: Dùng VNPay IPN làm nguồn xác nhận thanh toán
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-08-18
 - Owners: Project maintainers
 - Supersedes: None
-- Superseded by: None
+- Superseded by: [ADR-0006](./0006-treat-stripe-webhook-as-payment-source-of-truth.md)
 - Implementation status: Not started
 
 ## Context

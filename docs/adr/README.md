@@ -21,7 +21,8 @@ ADR giải thích **vì sao** một hướng được chọn. `PROJECT_PLAN.md` 
 | [ADR-0002](./0002-rotate-refresh-tokens-by-family.md)              | Rotate refresh token theo token family                  | Accepted   | Đã triển khai cho auth hiện tại |
 | [ADR-0003](./0003-use-fixed-roles-and-direct-staff-permissions.md) | Dùng role cố định và cấp permission trực tiếp cho staff | Accepted   | Chưa triển khai                 |
 | [ADR-0004](./0004-reserve-inventory-with-transactional-ledger.md)  | Giữ tồn kho bằng reservation và transactional ledger    | Accepted   | Chưa triển khai                 |
-| [ADR-0005](./0005-treat-vnpay-ipn-as-payment-source-of-truth.md)   | Dùng VNPay IPN làm nguồn xác nhận thanh toán            | Accepted   | Chưa triển khai                 |
+| [ADR-0005](./0005-treat-vnpay-ipn-as-payment-source-of-truth.md)   | Dùng VNPay IPN làm nguồn xác nhận thanh toán            | Superseded | Thay thế bởi ADR-0006           |
+| [ADR-0006](./0006-treat-stripe-webhook-as-payment-source-of-truth.md) | Dùng Stripe Webhook làm nguồn xác nhận thanh toán | Accepted   | Đã triển khai                   |
 
 ## Khi nào cần tạo ADR
 
