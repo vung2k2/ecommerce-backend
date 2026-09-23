@@ -9,3 +9,5 @@ src/generated/
 .DS_Store
 .idea/
 .vscode/
+
+EC2_key.pem
