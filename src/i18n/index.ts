@@ -83,6 +83,11 @@ const errorMessageKeys = {
   [ERROR_CODES.PAYMENT_CHECKSUM_INVALID]: 'errors.paymentChecksumInvalid',
   [ERROR_CODES.PAYMENT_TRANSACTION_NOT_FOUND]: 'errors.paymentTransactionNotFound',
   [ERROR_CODES.PAYMENT_AMOUNT_MISMATCH]: 'errors.paymentAmountMismatch',
+  [ERROR_CODES.REVIEW_NOT_FOUND]: 'errors.reviewNotFound',
+  [ERROR_CODES.ORDER_ITEM_NOT_FOUND]: 'errors.orderItemNotFound',
+  [ERROR_CODES.ORDER_NOT_DELIVERED]: 'errors.orderNotDelivered',
+  [ERROR_CODES.REVIEW_ALREADY_EXISTS]: 'errors.reviewAlreadyExists',
+  [ERROR_CODES.INVALID_REPORT_DATE_RANGE]: 'errors.invalidReportDateRange',
 } as const satisfies Record<ErrorCode, MessageKey>;
 
 function interpolate(message: string, params: TranslationParams): string {

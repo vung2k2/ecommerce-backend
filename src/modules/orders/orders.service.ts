@@ -12,10 +12,7 @@ import {
 import { prisma } from '../../database/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../../utils/app-error.js';
-import {
-  calculateCouponDiscount,
-  evaluateItemAvailability,
-} from '../../utils/pricing.js';
+import { calculateCouponDiscount, evaluateItemAvailability } from '../../utils/pricing.js';
 import { auditRepository } from '../audit/audit.repository.js';
 import { cartRepository } from '../cart/cart.repository.js';
 import { couponRepository } from '../coupons/coupons.repository.js';
@@ -38,18 +35,9 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     ORDER_STATUSES.CANCELLED,
     ORDER_STATUSES.PAYMENT_EXPIRED,
   ],
-  [ORDER_STATUSES.CONFIRMED]: [
-    ORDER_STATUSES.PROCESSING,
-    ORDER_STATUSES.CANCELLED,
-  ],
-  [ORDER_STATUSES.PROCESSING]: [
-    ORDER_STATUSES.SHIPPING,
-    ORDER_STATUSES.CANCELLED,
-  ],
-  [ORDER_STATUSES.SHIPPING]: [
-    ORDER_STATUSES.DELIVERED,
-    ORDER_STATUSES.CANCELLED,
-  ],
+  [ORDER_STATUSES.CONFIRMED]: [ORDER_STATUSES.PROCESSING, ORDER_STATUSES.CANCELLED],
+  [ORDER_STATUSES.PROCESSING]: [ORDER_STATUSES.SHIPPING, ORDER_STATUSES.CANCELLED],
+  [ORDER_STATUSES.SHIPPING]: [ORDER_STATUSES.DELIVERED, ORDER_STATUSES.CANCELLED],
   [ORDER_STATUSES.DELIVERED]: [],
   [ORDER_STATUSES.CANCELLED]: [],
   [ORDER_STATUSES.PAYMENT_EXPIRED]: [],
@@ -79,6 +67,7 @@ function mapOrderToResponse(order: OrderWithDetailsRecord) {
     notes: order.notes,
     cancelReason: order.cancelReason,
     cancelledAt: order.cancelledAt ? order.cancelledAt.toISOString() : null,
+    deliveredAt: order.deliveredAt ? order.deliveredAt.toISOString() : null,
     shippingAddress: {
       recipientName: order.recipientName,
       phone: order.phone,
@@ -216,13 +205,7 @@ export const orderService = {
 
       // 9. Reserve Stock for all items atomically
       for (const item of cart.items) {
-        await inventoryService.reserveStock(
-          item.variantId,
-          item.quantity,
-          orderNumber,
-          userId,
-          tx,
-        );
+        await inventoryService.reserveStock(item.variantId, item.quantity, orderNumber, userId, tx);
       }
 
       // 10. Determine Initial Order & Payment Status
@@ -648,6 +631,7 @@ export const orderService = {
           paymentStatus: nextPaymentStatus,
           cancelReason: dto.status === ORDER_STATUSES.CANCELLED ? reason : undefined,
           cancelledAt: dto.status === ORDER_STATUSES.CANCELLED ? new Date() : undefined,
+          deliveredAt: dto.status === ORDER_STATUSES.DELIVERED ? new Date() : undefined,
         },
         tx,
       );

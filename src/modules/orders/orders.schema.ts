@@ -17,9 +17,14 @@ export const checkoutSchema = z.object({
   addressId: z
     .string()
     .uuid('validation.addressIdUuid')
-    .openapi({ example: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', description: 'Shipping address UUID' }),
+    .openapi({
+      example: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+      description: 'Shipping address UUID',
+    }),
   paymentMethod: z
-    .enum([PAYMENT_METHODS.COD, PAYMENT_METHODS.STRIPE], { message: 'validation.paymentMethodRequired' })
+    .enum([PAYMENT_METHODS.COD, PAYMENT_METHODS.STRIPE], {
+      message: 'validation.paymentMethodRequired',
+    })
     .openapi({ example: 'STRIPE', description: 'Payment method (COD or STRIPE)' }),
   couponCode: z
     .string()
@@ -130,10 +135,17 @@ export type ListAdminOrdersQueryDto = z.infer<typeof listAdminOrdersQuerySchema>
 
 export const orderItemResponseSchema = z.object({
   id: z.string().uuid().openapi({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' }),
-  variantId: z.string().uuid().nullable().openapi({ example: '4fa85f64-5717-4562-b3fc-2c963f66afa7' }),
+  variantId: z
+    .string()
+    .uuid()
+    .nullable()
+    .openapi({ example: '4fa85f64-5717-4562-b3fc-2c963f66afa7' }),
   productName: z.string().openapi({ example: 'Laptop ThinkPad X1 Carbon Gen 12' }),
   sku: z.string().openapi({ example: 'TP-X1-32GB' }),
-  options: z.record(z.string(), z.unknown()).nullable().openapi({ example: { RAM: '32GB', SSD: '1TB' } }),
+  options: z
+    .record(z.string(), z.unknown())
+    .nullable()
+    .openapi({ example: { RAM: '32GB', SSD: '1TB' } }),
   unitPrice: z.string().openapi({ example: '35000000' }),
   quantity: z.number().int().openapi({ example: 1 }),
   totalPrice: z.string().openapi({ example: '35000000' }),
@@ -145,7 +157,11 @@ export const orderStatusHistoryResponseSchema = z.object({
   fromStatus: z.string().nullable().openapi({ example: 'PENDING_PAYMENT' }),
   toStatus: z.string().openapi({ example: 'CONFIRMED' }),
   reason: z.string().nullable().openapi({ example: 'COD order confirmed automatically' }),
-  changedById: z.string().uuid().nullable().openapi({ example: '6fa85f64-5717-4562-b3fc-2c963f66afa9' }),
+  changedById: z
+    .string()
+    .uuid()
+    .nullable()
+    .openapi({ example: '6fa85f64-5717-4562-b3fc-2c963f66afa9' }),
   createdAt: z.string().datetime().openapi({ example: '2026-08-31T10:00:00.000Z' }),
 });
 
@@ -173,6 +189,7 @@ export const orderSummaryResponseSchema = z.object({
   notes: z.string().nullable().openapi({ example: 'Giao gio hanh chinh' }),
   cancelReason: z.string().nullable().openapi({ example: null }),
   cancelledAt: z.string().datetime().nullable().openapi({ example: null }),
+  deliveredAt: z.string().datetime().nullable().openapi({ example: null }),
   shippingAddress: shippingAddressResponseSchema,
   totalItems: z.number().int().openapi({ example: 1 }),
   createdAt: z.string().datetime().openapi({ example: '2026-08-31T10:00:00.000Z' }),

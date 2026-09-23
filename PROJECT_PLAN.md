@@ -307,12 +307,12 @@ Acceptance criteria:
 
 ### 5.8. Review và admin/staff reporting
 
-- [ ] User chỉ review sản phẩm từ order `DELIVERED`.
-- [ ] Mỗi order item chỉ được review một lần.
-- [ ] Hỗ trợ rating, nội dung và trạng thái hiển thị.
-- [ ] Admin hoặc staff có `review:moderate` có thể ẩn review vi phạm và lưu lý do.
-- [ ] Admin hoặc staff có `report:read` xem doanh thu, số order và sản phẩm bán chạy theo khoảng thời gian.
-- [ ] Chỉ tính doanh thu từ trạng thái được định nghĩa là hoàn tất.
+- [x] User chỉ review sản phẩm từ order `DELIVERED`.
+- [x] Mỗi order item chỉ được review một lần.
+- [x] Hỗ trợ rating, nội dung và trạng thái hiển thị.
+- [x] Admin hoặc staff có `review:moderate` có thể ẩn review vi phạm và lưu lý do.
+- [x] Admin hoặc staff có `report:read` xem doanh thu, số order và sản phẩm bán chạy theo khoảng thời gian.
+- [x] Chỉ tính doanh thu từ trạng thái được định nghĩa là hoàn tất.
 
 Acceptance criteria:
 

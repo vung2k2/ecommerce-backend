@@ -32,12 +32,7 @@ export const adminOrderRouter = Router();
 //#region Routes
 
 // --- Checkout Route ---
-checkoutRouter.post(
-  '/',
-  requireAuth,
-  validateBody(checkoutSchema),
-  orderController.checkout,
-);
+checkoutRouter.post('/', requireAuth, validateBody(checkoutSchema), orderController.checkout);
 
 // --- Customer Order Routes ---
 customerOrderRouter.get(

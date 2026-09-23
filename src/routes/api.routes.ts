@@ -11,6 +11,8 @@ import {
   customerOrderRouter,
 } from '../modules/orders/orders.routes.js';
 import { paymentsRouter } from '../modules/payments/payments.routes.js';
+import { adminReportRouter } from '../modules/reports/reports.routes.js';
+import { adminReviewRouter, productReviewRouter } from '../modules/reviews/reviews.routes.js';
 import { usersRouter } from '../modules/users/users.routes.js';
 
 export const apiRouter = Router();
@@ -22,11 +24,12 @@ apiRouter.use('/coupons', customerCouponRouter);
 apiRouter.use('/checkout', checkoutRouter);
 apiRouter.use('/orders', customerOrderRouter);
 apiRouter.use('/payments', paymentsRouter);
+apiRouter.use('/products', productReviewRouter);
 apiRouter.use('/admin/staff', staffRouter);
 apiRouter.use('/admin/inventory', inventoryRouter);
 apiRouter.use('/admin/coupons', adminCouponRouter);
 apiRouter.use('/admin/orders', adminOrderRouter);
+apiRouter.use('/admin/reviews', adminReviewRouter);
+apiRouter.use('/admin/reports', adminReportRouter);
 apiRouter.use('/admin', adminCatalogRouter);
 apiRouter.use('/', publicCatalogRouter);
-
-

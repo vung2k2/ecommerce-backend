@@ -88,6 +88,7 @@ export interface OrderWithDetailsRecord {
   notes: string | null;
   cancelReason: string | null;
   cancelledAt: Date | null;
+  deliveredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   items: OrderItemRecord[];
@@ -114,6 +115,7 @@ export interface UpdateOrderStatusData {
   paymentStatus?: PaymentStatus | undefined;
   cancelReason?: string | null | undefined;
   cancelledAt?: Date | null | undefined;
+  deliveredAt?: Date | null | undefined;
 }
 
 // ==================== Repository ====================
@@ -147,9 +149,7 @@ export const orderRepository = {
             productName: item.productName,
             sku: item.sku,
             options:
-              item.options === undefined || item.options === null
-                ? Prisma.DbNull
-                : item.options,
+              item.options === undefined || item.options === null ? Prisma.DbNull : item.options,
             unitPrice: item.unitPrice,
             quantity: item.quantity,
             totalPrice: item.totalPrice,
@@ -208,7 +208,10 @@ export const orderRepository = {
     });
   },
 
-  async findForUpdate(id: string, tx: Prisma.TransactionClient): Promise<OrderWithDetailsRecord | null> {
+  async findForUpdate(
+    id: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<OrderWithDetailsRecord | null> {
     await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
     return this.findById(id, tx);
   },
@@ -331,6 +334,7 @@ export const orderRepository = {
         ...(data.paymentStatus !== undefined ? { paymentStatus: data.paymentStatus } : {}),
         ...(data.cancelReason !== undefined ? { cancelReason: data.cancelReason } : {}),
         ...(data.cancelledAt !== undefined ? { cancelledAt: data.cancelledAt } : {}),
+        ...(data.deliveredAt !== undefined ? { deliveredAt: data.deliveredAt } : {}),
       },
       include: {
         items: {

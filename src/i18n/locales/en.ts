@@ -58,12 +58,12 @@ export const enMessages = {
   'errors.couponCannotDeleteUsed':
     'Cannot delete coupon that has already been used. Please deactivate it instead.',
   'errors.invalidCouponDates': 'Start date must be before or equal to end date',
-  'errors.invalidCouponLimits':
-    'Coupon usage limit cannot be less than the current used count',
+  'errors.invalidCouponLimits': 'Coupon usage limit cannot be less than the current used count',
   'errors.orderNotFound': 'Order not found',
   'errors.orderItemsEmpty': 'Order must contain at least one item',
   'errors.orderCannotCancel': 'Order cannot be cancelled in its current status',
-  'errors.orderPaidCannotCancel': 'Paid online order cannot be cancelled directly. Please contact customer support.',
+  'errors.orderPaidCannotCancel':
+    'Paid online order cannot be cancelled directly. Please contact customer support.',
   'errors.orderInvalidStateTransition': 'Invalid order state transition',
   'errors.orderOnlinePaymentAdminConfirmNotAllowed':
     'Online payment orders cannot be confirmed manually by admin. Awaiting webhook verification.',
@@ -76,6 +76,11 @@ export const enMessages = {
   'errors.paymentChecksumInvalid': 'Payment checksum verification failed',
   'errors.paymentTransactionNotFound': 'Payment transaction not found',
   'errors.paymentAmountMismatch': 'Payment amount does not match order amount',
+  'errors.reviewNotFound': 'Review not found',
+  'errors.orderItemNotFound': 'Order item not found or you do not have permission to review it',
+  'errors.orderNotDelivered': 'Product can only be reviewed after the order is delivered',
+  'errors.reviewAlreadyExists': 'This order item has already been reviewed',
+  'errors.invalidReportDateRange': 'Start date must be before or equal to end date',
   'validation.bodyInvalid': 'Request body is invalid',
   'validation.paramsInvalid': 'Request params are invalid',
   'validation.queryInvalid': 'Request query is invalid',
@@ -130,6 +135,7 @@ export const enMessages = {
   'success.couponDeleted': 'Coupon deleted successfully',
   'success.orderCancelled': 'Order cancelled successfully',
   'success.orderStatusUpdated': 'Order status updated successfully',
+  'success.reviewModerated': 'Review moderation updated successfully',
 } as const;
 
 export type MessageKey = keyof typeof enMessages;

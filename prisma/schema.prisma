@@ -80,6 +80,8 @@ model User {
   couponUsages         CouponUsage[]
   orders               Order[]
   orderStatusHistories OrderStatusHistory[]
+  reviews              Review[]             @relation("UserReviews")
+  moderatedReviews     Review[]             @relation("ModeratedReviews")
 
   @@map("users")
 }
@@ -185,6 +187,7 @@ model Product {
   images         ProductImage[]
   variants       ProductVariant[]
   specifications ProductSpecification[]
+  reviews        Review[]
   createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -365,6 +368,7 @@ model Order {
   notes          String?              @db.Text
   cancelReason   String?              @map("cancel_reason") @db.VarChar(255)
   cancelledAt    DateTime?            @map("cancelled_at") @db.Timestamptz(3)
+  deliveredAt    DateTime?            @map("delivered_at") @db.Timestamptz(3)
   paymentExpiresAt DateTime?          @map("payment_expires_at") @db.Timestamptz(3)
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -378,6 +382,7 @@ model Order {
   @@index([status])
   @@index([paymentStatus])
   @@index([paymentExpiresAt])
+  @@index([deliveredAt])
   @@index([createdAt])
   @@map("orders")
 }
@@ -395,10 +400,37 @@ model OrderItem {
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  review      Review?
 
   @@index([orderId])
   @@index([variantId])
   @@map("order_items")
+}
+
+model Review {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  productId        String    @map("product_id") @db.Uuid
+  orderItemId      String    @unique @map("order_item_id") @db.Uuid
+  rating           Int       @db.SmallInt
+  comment          String?   @db.Text
+  isVisible        Boolean   @default(true) @map("is_visible")
+  moderationReason String?   @map("moderation_reason") @db.VarChar(255)
+  moderatedById    String?   @map("moderated_by_id") @db.Uuid
+  moderatedAt      DateTime? @map("moderated_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User      @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  moderatedBy User?     @relation("ModeratedReviews", fields: [moderatedById], references: [id], onDelete: SetNull)
+
+  @@index([productId, isVisible])
+  @@index([userId])
+  @@index([orderItemId])
+  @@index([createdAt])
+  @@map("reviews")
 }
 
 model OrderStatusHistory {

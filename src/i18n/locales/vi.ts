@@ -61,12 +61,12 @@ export const viMessages: Record<MessageKey, string> = {
   'errors.couponCannotDeleteUsed':
     'Không thể xóa mã giảm giá đã được sử dụng. Vui lòng chuyển sang vô hiệu hóa.',
   'errors.invalidCouponDates': 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
-  'errors.invalidCouponLimits':
-    'Giới hạn sử dụng không thể nhỏ hơn số lượt đã dùng hiện tại',
+  'errors.invalidCouponLimits': 'Giới hạn sử dụng không thể nhỏ hơn số lượt đã dùng hiện tại',
   'errors.orderNotFound': 'Không tìm thấy đơn hàng',
   'errors.orderItemsEmpty': 'Đơn hàng phải chứa ít nhất một sản phẩm',
   'errors.orderCannotCancel': 'Không thể hủy đơn hàng ở trạng thái hiện tại',
-  'errors.orderPaidCannotCancel': 'Đơn hàng trực tuyến đã thanh toán không thể tự hủy. Vui lòng liên hệ bộ phận hỗ trợ.',
+  'errors.orderPaidCannotCancel':
+    'Đơn hàng trực tuyến đã thanh toán không thể tự hủy. Vui lòng liên hệ bộ phận hỗ trợ.',
   'errors.orderInvalidStateTransition': 'Chuyển đổi trạng thái đơn hàng không hợp lệ',
   'errors.orderOnlinePaymentAdminConfirmNotAllowed':
     'Admin không thể xác nhận thủ công đơn hàng thanh toán trực tuyến. Vui lòng chờ webhook xác thực thanh toán.',
@@ -79,6 +79,13 @@ export const viMessages: Record<MessageKey, string> = {
   'errors.paymentChecksumInvalid': 'Xác thực chữ ký thanh toán không hợp lệ',
   'errors.paymentTransactionNotFound': 'Không tìm thấy giao dịch thanh toán',
   'errors.paymentAmountMismatch': 'Số tiền thanh toán không khớp với đơn hàng',
+  'errors.reviewNotFound': 'Không tìm thấy đánh giá',
+  'errors.orderItemNotFound':
+    'Không tìm thấy sản phẩm trong đơn hàng hoặc bạn không có quyền đánh giá sản phẩm này',
+  'errors.orderNotDelivered':
+    'Chỉ có thể đánh giá sản phẩm sau khi đơn hàng đã được giao thành công',
+  'errors.reviewAlreadyExists': 'Sản phẩm trong đơn hàng này đã được đánh giá',
+  'errors.invalidReportDateRange': 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
   'validation.bodyInvalid': 'Request body không hợp lệ',
   'validation.paramsInvalid': 'Request params không hợp lệ',
   'validation.queryInvalid': 'Request query không hợp lệ',
@@ -133,4 +140,5 @@ export const viMessages: Record<MessageKey, string> = {
   'success.couponDeleted': 'Xóa mã giảm giá thành công',
   'success.orderCancelled': 'Hủy đơn hàng thành công',
   'success.orderStatusUpdated': 'Cập nhật trạng thái đơn hàng thành công',
+  'success.reviewModerated': 'Cập nhật kiểm duyệt đánh giá thành công',
 };
