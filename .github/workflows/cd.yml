@@ -74,7 +74,7 @@ jobs:
     name: Deploy to Production EC2
     needs: [build-and-push]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -103,16 +103,13 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: IMAGE_TAG,REPO,GHCR_USER,GHCR_PAT
+          command_timeout: 30m
           script: |
             set -e
             cd ~/app
 
             # Đăng nhập GHCR trên EC2 (nếu package ở chế độ private)
-            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin || true
-
-            # Giải phóng dung lượng đĩa EC2 trước khi pull image mới
-            echo "🧹 Cleaning up unused Docker resources to free disk space..."
-            docker system prune -af --volumes=false || true
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
             export API_IMAGE="ghcr.io/${REPO}-api:${IMAGE_TAG}"
             export MIGRATOR_IMAGE="ghcr.io/${REPO}-migrator:${IMAGE_TAG}"
