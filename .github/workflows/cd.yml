@@ -116,7 +116,7 @@ jobs:
 
             echo "🚀 Pulling new images: $API_IMAGE..."
             for attempt in 1 2 3; do
-              if docker compose -f compose.prod.yaml pull api migrator; then
+              if docker compose -f compose.prod.yaml pull -q api migrator; then
                 echo "✅ Images pulled successfully."
                 break
               fi
@@ -138,6 +138,8 @@ jobs:
             for i in {1..12}; do
               if docker compose -f compose.prod.yaml exec -T api node -e "fetch('http://127.0.0.1:3000/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"; then
                 echo "✅ Deployment successful! API is healthy."
+                echo "🧹 Cleaning up dangling images to save disk space..."
+                docker image prune -f || true
                 exit 0
               fi
               echo "Waiting for health check... ($i/12)"
