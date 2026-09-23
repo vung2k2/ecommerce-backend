@@ -141,6 +141,8 @@ Khi một quyết định mới thay đổi phạm vi hoặc kiến trúc, đề
 
 - `PROJECT_PLAN.md` chứa scope, kiến trúc, checklist, API định hướng, test plan và deployment plan.
 - `AGENTS.md` chỉ chứa nguyên tắc cộng tác và kỹ thuật áp dụng cho AI.
+- `docs/` chứa tài liệu chi tiết về quyết định kiến trúc (`docs/adr/`), vận hành (`docs/ops/`) và sự cố (`docs/troubleshooting/`).
+- **Quy tắc đọc tài liệu theo nhu cầu (On-Demand Lookup)**: AI tuyệt đối không đọc toàn bộ các file trong `docs/` để tránh lãng phí context window. Chỉ tra cứu đúng file liên quan theo bảng hướng dẫn trong `docs/README.md` khi phát sinh tác vụ thuộc phạm vi đó.
 - Không sao chép toàn bộ kế hoạch dự án vào file này.
 - Khi code và tài liệu mâu thuẫn, báo cho người dùng; không tự âm thầm chọn một bên.
 
