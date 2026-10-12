@@ -12,6 +12,7 @@ import { prisma } from '../../database/prisma.js';
 import { stripeService } from '../../services/stripe.service.js';
 import { AppError } from '../../utils/app-error.js';
 import { auditRepository } from '../audit/audit.repository.js';
+import { couponRepository } from '../coupons/coupons.repository.js';
 import { inventoryService } from '../inventory/inventory.service.js';
 import { orderRepository } from '../orders/orders.repository.js';
 import type { PaymentTransactionRecord } from './payments.repository.js';
@@ -298,6 +299,20 @@ export const paymentService = {
                   null,
                   tx,
                 );
+              }
+            }
+
+            // Revert coupon usage if applicable
+            if (order.couponCode) {
+              const coupon = await couponRepository.findByCode(order.couponCode, tx);
+              if (coupon) {
+                await tx.coupon.update({
+                  where: { id: coupon.id },
+                  data: { usedCount: { decrement: 1 } },
+                });
+                await tx.couponUsage.deleteMany({
+                  where: { orderId: order.id },
+                });
               }
             }
 
