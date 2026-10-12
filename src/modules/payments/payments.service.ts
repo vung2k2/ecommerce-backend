@@ -326,6 +326,18 @@ export const paymentService = {
                 );
               }
             }
+
+            // Record status history for audit trail
+            await orderRepository.createStatusHistory(
+              {
+                orderId: order.id,
+                fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
+                toStatus: ORDER_STATUSES.PAYMENT_EXPIRED,
+                reason: `Stripe checkout session expired (Session: ${session.id})`,
+                changedById: null,
+              },
+              tx,
+            );
           }
         });
       }
