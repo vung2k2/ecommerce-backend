@@ -9,15 +9,17 @@ import {
   PAYMENT_TRANSACTION_STATUSES,
 } from '../../constants/index.js';
 import { prisma } from '../../database/prisma.js';
+import { cancelOrderExpiryJob } from '../../jobs/index.js';
 import { stripeService } from '../../services/stripe.service.js';
 import { AppError } from '../../utils/app-error.js';
 import { auditRepository } from '../audit/audit.repository.js';
-import { couponRepository } from '../coupons/coupons.repository.js';
 import { inventoryService } from '../inventory/inventory.service.js';
 import { orderRepository } from '../orders/orders.repository.js';
+import { orderService } from '../orders/orders.service.js';
 import type { PaymentTransactionRecord } from './payments.repository.js';
 import { paymentRepository } from './payments.repository.js';
 import type { CreateStripeCheckoutDto } from './payments.schema.js';
+
 
 export const paymentService = {
   async createStripeCheckoutSession(
@@ -272,74 +274,20 @@ export const paymentService = {
           tx,
         );
       });
+
+      if (metadataOrderId) {
+        await cancelOrderExpiryJob(metadataOrderId);
+      }
     } else if (event.type === 'checkout.session.expired') {
       const session = event.data.object;
       const orderId = session.metadata?.orderId;
-      const txnRef = session.metadata?.txnRef;
 
       if (orderId) {
-        await prisma.$transaction(async (tx) => {
-          const order = await orderRepository.findForUpdate(orderId, tx);
-          if (order && order.status === ORDER_STATUSES.PENDING_PAYMENT) {
-            await orderRepository.updateOrderStatus(
-              order.id,
-              {
-                status: ORDER_STATUSES.PAYMENT_EXPIRED,
-                paymentStatus: PAYMENT_STATUSES.EXPIRED,
-              },
-              tx,
-            );
-
-            for (const item of order.items) {
-              if (item.variantId) {
-                await inventoryService.releaseReservation(
-                  item.variantId,
-                  item.quantity,
-                  order.orderNumber,
-                  null,
-                  tx,
-                );
-              }
-            }
-
-            // Revert coupon usage if applicable
-            if (order.couponCode) {
-              const coupon = await couponRepository.findByCode(order.couponCode, tx);
-              if (coupon) {
-                await tx.coupon.update({
-                  where: { id: coupon.id },
-                  data: { usedCount: { decrement: 1 } },
-                });
-                await tx.couponUsage.deleteMany({
-                  where: { orderId: order.id },
-                });
-              }
-            }
-
-            if (txnRef) {
-              const paymentTx = await paymentRepository.findByTxnRef(txnRef, tx);
-              if (paymentTx) {
-                await paymentRepository.updatePaymentTransaction(
-                  paymentTx.id,
-                  { status: PAYMENT_TRANSACTION_STATUSES.EXPIRED },
-                  tx,
-                );
-              }
-            }
-
-            // Record status history for audit trail
-            await orderRepository.createStatusHistory(
-              {
-                orderId: order.id,
-                fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
-                toStatus: ORDER_STATUSES.PAYMENT_EXPIRED,
-                reason: `Stripe checkout session expired (Session: ${session.id})`,
-                changedById: null,
-              },
-              tx,
-            );
-          }
-        });
+        await orderService.expireOrder(
+          orderId,
+          `Stripe checkout session expired (Session: ${session.id})`,
+        );
+        await cancelOrderExpiryJob(orderId);
       }
     }
 

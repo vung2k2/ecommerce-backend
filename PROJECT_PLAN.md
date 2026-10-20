@@ -118,13 +118,13 @@ route -> middleware -> controller -> service/use case -> repository -> database
 - [x] Tách `app.ts` khỏi `server.ts` để dễ integration test.
 - [x] Validate environment variables khi khởi động.
 - [ ] Cấu hình PostgreSQL, Prisma, migration và seed. PostgreSQL/Prisma đã setup; migration và seed sẽ làm khi có model đầu tiên.
-- [ ] Cấu hình Redis và xử lý lỗi kết nối.
+- [x] Cấu hình Redis và xử lý lỗi kết nối.
 - [x] Tạo Dockerfile nhiều stage và Docker Compose cho local.
 - [x] Chuẩn hóa success response, error response và pagination metadata.
 - [ ] Tạo centralized error handler và mapping domain error sang HTTP status. Handler nền tảng đã có; mapping domain error làm khi bắt đầu module nghiệp vụ.
 - [x] Thêm request ID, Pino logger và request logging.
 - [x] Thêm Helmet, CORS allowlist, body limit và rate limiting.
-- [ ] Thêm graceful shutdown cho HTTP server, Prisma, Redis và worker. HTTP server/Prisma đã có; Redis/worker thêm sau.
+- [x] Thêm graceful shutdown cho HTTP server, Prisma, Redis và worker.
 - [x] Tạo `/health/live`, `/health/ready` và `/docs`.
 
 Acceptance criteria:
@@ -270,7 +270,7 @@ Acceptance criteria:
 - [x] State transition được kiểm soát bằng domain service/state machine.
 - [x] COD xác nhận order ngay sau checkout hợp lệ.
 - [x] Stripe tạo order ở trạng thái chờ thanh toán và giữ tồn kho có thời hạn.
-- [ ] BullMQ job hết hạn order và giải phóng reservation. (Sẽ tích hợp cùng Redis/BullMQ worker)
+- [x] BullMQ job hết hạn order và giải phóng reservation.
 - [x] Khách chỉ hủy order trước khi processing.
 - [x] Admin chuyển order qua các fulfillment state hợp lệ.
 - [x] User chỉ xem và thao tác trên order của chính mình.

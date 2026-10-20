@@ -3,13 +3,15 @@ import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { prisma } from './database/prisma.js';
+import { disconnectRedis } from './database/redis.js';
+import { startBackgroundJobs, stopBackgroundJobs } from './jobs/index.js';
 
 const server = createServer(createApp());
 
 server.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'HTTP server started');
+  startBackgroundJobs();
 });
-
 
 function shutdown(signal: string) {
   logger.info({ signal }, 'Graceful shutdown started');
@@ -20,6 +22,8 @@ function shutdown(signal: string) {
 }
 
 async function finalizeShutdown(error?: Error) {
+  await stopBackgroundJobs();
+  await disconnectRedis();
   await prisma.$disconnect();
 
   if (error) {

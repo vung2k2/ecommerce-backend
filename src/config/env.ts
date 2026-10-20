@@ -10,6 +10,7 @@ const envSchema = z
       .default('info'),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     DATABASE_URL: z.url().startsWith('postgresql://'),
+    REDIS_URL: z.url().default('redis://127.0.0.1:6379'),
     JWT_ACCESS_SECRET: z.string().min(32),
     JWT_REFRESH_SECRET: z.string().min(32),
     AWS_REGION: z.string().default('ap-southeast-1'),

@@ -9,8 +9,10 @@ import {
   type OrderStatus,
   type PaymentStatus,
 } from '../../constants/index.js';
+import { logger } from '../../config/logger.js';
 import { prisma } from '../../database/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { cancelOrderExpiryJob, scheduleOrderExpiry } from '../../jobs/index.js';
 import { AppError } from '../../utils/app-error.js';
 import { calculateCouponDiscount, evaluateItemAvailability } from '../../utils/pricing.js';
 import { auditRepository } from '../audit/audit.repository.js';
@@ -105,7 +107,7 @@ function mapOrderToResponse(order: OrderWithDetailsRecord) {
 
 export const orderService = {
   async checkout(userId: string, dto: CheckoutDto) {
-    return prisma.$transaction(async (tx) => {
+    const createdOrder = await prisma.$transaction(async (tx) => {
       // 1. Lock user's cart
       await cartRepository.getOrCreateCartAndLock(userId, tx);
 
@@ -300,6 +302,12 @@ export const orderService = {
 
       return mapOrderToResponse(order);
     });
+
+    if (dto.paymentMethod === PAYMENT_METHODS.STRIPE) {
+      await scheduleOrderExpiry(createdOrder.id);
+    }
+
+    return createdOrder;
   },
 
   async getCustomerOrders(userId: string, query: ListCustomerOrdersQueryDto) {
@@ -325,7 +333,7 @@ export const orderService = {
   },
 
   async cancelCustomerOrder(userId: string, orderId: string, dto: CancelOrderDto) {
-    return prisma.$transaction(async (tx) => {
+    const cancelledOrder = await prisma.$transaction(async (tx) => {
       // 1. Lock order for update
       const order = await orderRepository.findForUpdate(orderId, tx);
       if (!order || order.userId !== userId) {
@@ -449,6 +457,10 @@ export const orderService = {
 
       return mapOrderToResponse(updatedOrder);
     });
+
+    await cancelOrderExpiryJob(orderId);
+
+    return cancelledOrder;
   },
 
   async listAdminOrders(query: ListAdminOrdersQueryDto) {
@@ -475,7 +487,7 @@ export const orderService = {
   },
 
   async updateAdminOrderStatus(orderId: string, dto: UpdateOrderStatusDto, actorId: string) {
-    return prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       // 1. Lock order for update
       const order = await orderRepository.findForUpdate(orderId, tx);
       if (!order) {
@@ -666,6 +678,110 @@ export const orderService = {
       );
 
       return mapOrderToResponse(updatedOrder);
+    });
+
+    await cancelOrderExpiryJob(orderId);
+
+    return updated;
+  },
+
+  async expireOrder(
+    orderId: string,
+    reason = 'Payment timeout: Order expired automatically',
+  ) {
+    return prisma.$transaction(async (tx) => {
+      // 1. Lock order for update
+      const order = await orderRepository.findForUpdate(orderId, tx);
+      if (!order) {
+        logger.warn({ orderId }, 'Order not found for expiry');
+        return null;
+      }
+
+      // 2. Guard: if order is not PENDING_PAYMENT, it has already transitioned (paid/cancelled/expired)
+      if (order.status !== ORDER_STATUSES.PENDING_PAYMENT) {
+        logger.info(
+          { orderId, status: order.status },
+          'Order is no longer in PENDING_PAYMENT status, skipping expiry',
+        );
+        return mapOrderToResponse(order);
+      }
+
+      // 3. Transition order status to PAYMENT_EXPIRED
+      await orderRepository.updateOrderStatus(
+        order.id,
+        {
+          status: ORDER_STATUSES.PAYMENT_EXPIRED,
+          paymentStatus: PAYMENT_STATUSES.EXPIRED,
+        },
+        tx,
+      );
+
+      // 4. Release reserved inventory
+      for (const item of order.items) {
+        if (item.variantId) {
+          await inventoryService.releaseReservation(
+            item.variantId,
+            item.quantity,
+            order.orderNumber,
+            null,
+            tx,
+          );
+        }
+      }
+
+      // 5. Revert coupon usage if applied
+      if (order.couponCode) {
+        const coupon = await couponRepository.findByCode(order.couponCode, tx);
+        if (coupon) {
+          await tx.coupon.update({
+            where: { id: coupon.id },
+            data: { usedCount: { decrement: 1 } },
+          });
+          await tx.couponUsage.deleteMany({
+            where: { orderId: order.id },
+          });
+        }
+      }
+
+      // 6. Expire pending payment attempts
+      await tx.paymentTransaction.updateMany({
+        where: { orderId: order.id, status: PAYMENT_TRANSACTION_STATUSES.PENDING },
+        data: { status: PAYMENT_TRANSACTION_STATUSES.EXPIRED },
+      });
+
+      // 7. Record status history
+      await orderRepository.createStatusHistory(
+        {
+          orderId: order.id,
+          fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
+          toStatus: ORDER_STATUSES.PAYMENT_EXPIRED,
+          reason,
+          changedById: null,
+        },
+        tx,
+      );
+
+      // 8. Record audit log
+      await auditRepository.createAuditLog(
+        {
+          actorId: null,
+          action: AUDIT_ACTIONS.ORDER_STATUS_UPDATED,
+          targetType: 'ORDER',
+          targetId: order.id,
+          payload: {
+            orderNumber: order.orderNumber,
+            fromStatus: ORDER_STATUSES.PENDING_PAYMENT,
+            toStatus: ORDER_STATUSES.PAYMENT_EXPIRED,
+            reason,
+          },
+        },
+        tx,
+      );
+
+      logger.info({ orderId, orderNumber: order.orderNumber }, 'Order expired successfully');
+
+      const updatedOrder = await orderRepository.findById(order.id, tx);
+      return updatedOrder ? mapOrderToResponse(updatedOrder) : null;
     });
   },
 };
