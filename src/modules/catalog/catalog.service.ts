@@ -11,6 +11,7 @@ import { orderRepository } from '../orders/orders.repository.js';
 import { uploadsService, type ImageFile } from '../uploads/uploads.service.js';
 import { s3Service } from '../../services/s3.service.js';
 import { AppError } from '../../utils/app-error.js';
+import { catalogCache } from './catalog.cache.js';
 import {
   catalogRepository,
   type CreateProductData,
@@ -190,9 +191,15 @@ export const catalogService = {
   // ==================== Categories ====================
 
   async getCategories() {
+    const cacheKey = catalogCache.keys.categoriesTree();
+    const cached = await catalogCache.get(cacheKey);
+    if (cached) return cached;
+
     const categories = await catalogRepository.findCategories();
     const tree = buildCategoryTree(categories);
-    return formatCatalogResponse(tree);
+    const result = formatCatalogResponse(tree);
+    await catalogCache.set(cacheKey, result);
+    return result;
   },
 
   async getCategoryById(id: string) {
@@ -204,11 +211,17 @@ export const catalogService = {
   },
 
   async getCategoryBySlug(slug: string) {
+    const cacheKey = catalogCache.keys.categorySlug(slug);
+    const cached = await catalogCache.get(cacheKey);
+    if (cached) return cached;
+
     const category = await catalogRepository.findCategoryBySlug(slug);
     if (!category) {
       throw new AppError(404, ERROR_CODES.CATEGORY_NOT_FOUND);
     }
-    return formatCatalogResponse(category);
+    const result = formatCatalogResponse(category);
+    await catalogCache.set(cacheKey, result);
+    return result;
   },
 
   async createCategory(dto: CreateCategoryDto, actorId?: string) {
@@ -226,7 +239,7 @@ export const catalogService = {
       throw new AppError(409, ERROR_CODES.CATEGORY_SLUG_EXISTS);
     }
 
-    return handlePrismaUnique(
+    const result = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
           const category = await catalogRepository.createCategory(
@@ -257,6 +270,12 @@ export const catalogService = {
       },
       { slug: ERROR_CODES.CATEGORY_SLUG_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.categories,
+      catalogCache.patterns.products,
+    );
+    return result;
   },
 
   async updateCategory(id: string, dto: UpdateCategoryDto, actorId?: string) {
@@ -295,7 +314,7 @@ export const catalogService = {
       }
     }
 
-    return handlePrismaUnique(
+    const result = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
           const updated = await catalogRepository.updateCategory(
@@ -327,6 +346,12 @@ export const catalogService = {
       },
       { slug: ERROR_CODES.CATEGORY_SLUG_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.categories,
+      catalogCache.patterns.products,
+    );
+    return result;
   },
 
   async deleteCategory(id: string, actorId?: string) {
@@ -361,13 +386,24 @@ export const catalogService = {
         );
       }
     });
+
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.categories,
+      catalogCache.patterns.products,
+    );
   },
 
   // ==================== Brands ====================
 
   async getBrands() {
+    const cacheKey = catalogCache.keys.brandsAll();
+    const cached = await catalogCache.get(cacheKey);
+    if (cached) return cached;
+
     const brands = await catalogRepository.findBrands();
-    return formatCatalogResponse(brands);
+    const result = formatCatalogResponse(brands);
+    await catalogCache.set(cacheKey, result);
+    return result;
   },
 
   async getBrandById(id: string) {
@@ -379,11 +415,17 @@ export const catalogService = {
   },
 
   async getBrandBySlug(slug: string) {
+    const cacheKey = catalogCache.keys.brandSlug(slug);
+    const cached = await catalogCache.get(cacheKey);
+    if (cached) return cached;
+
     const brand = await catalogRepository.findBrandBySlug(slug);
     if (!brand) {
       throw new AppError(404, ERROR_CODES.BRAND_NOT_FOUND);
     }
-    return formatCatalogResponse(brand);
+    const result = formatCatalogResponse(brand);
+    await catalogCache.set(cacheKey, result);
+    return result;
   },
 
   async createBrand(dto: CreateBrandDto, actorId?: string) {
@@ -394,7 +436,7 @@ export const catalogService = {
       throw new AppError(409, ERROR_CODES.BRAND_SLUG_EXISTS);
     }
 
-    return handlePrismaUnique(
+    const result = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
           const created = await catalogRepository.createBrand(
@@ -424,6 +466,12 @@ export const catalogService = {
       },
       { slug: ERROR_CODES.BRAND_SLUG_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.brands,
+      catalogCache.patterns.products,
+    );
+    return result;
   },
 
   async updateBrand(id: string, dto: UpdateBrandDto, actorId?: string) {
@@ -443,7 +491,7 @@ export const catalogService = {
       }
     }
 
-    return handlePrismaUnique(
+    const result = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
           const updated = await catalogRepository.updateBrand(
@@ -474,6 +522,12 @@ export const catalogService = {
       },
       { slug: ERROR_CODES.BRAND_SLUG_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.brands,
+      catalogCache.patterns.products,
+    );
+    return result;
   },
 
   async updateBrandLogo(id: string, file: ImageFile, actorId?: string) {
@@ -505,6 +559,11 @@ export const catalogService = {
         return formatCatalogResponse(result);
       });
 
+      await catalogCache.invalidatePatterns(
+        catalogCache.patterns.brands,
+        catalogCache.patterns.products,
+      );
+
       const oldKey = brand.logoUrl ? s3Service.extractKeyFromUrl(brand.logoUrl) : null;
       await s3Service.cleanupObjects(oldKey ? [oldKey] : []);
       return updated;
@@ -535,6 +594,11 @@ export const catalogService = {
       );
       return formatCatalogResponse(result);
     });
+
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.brands,
+      catalogCache.patterns.products,
+    );
 
     const oldKey = brand.logoUrl ? s3Service.extractKeyFromUrl(brand.logoUrl) : null;
     await s3Service.cleanupObjects(oldKey ? [oldKey] : []);
@@ -569,6 +633,11 @@ export const catalogService = {
       }
     });
 
+    await catalogCache.invalidatePatterns(
+      catalogCache.patterns.brands,
+      catalogCache.patterns.products,
+    );
+
     if (brand.logoUrl) {
       const key = s3Service.extractKeyFromUrl(brand.logoUrl);
       if (key) await s3Service.cleanupObjects([key]);
@@ -578,6 +647,10 @@ export const catalogService = {
   // ==================== Products ====================
 
   async listPublicProducts(query: ListProductsQueryDto) {
+    const cacheKey = catalogCache.keys.productsList(query as Record<string, unknown>);
+    const cached = await catalogCache.get<{ products: unknown[]; total: number }>(cacheKey);
+    if (cached) return cached;
+
     let categoryIds: string[] | undefined;
 
     if (query.categorySlug) {
@@ -617,19 +690,27 @@ export const catalogService = {
       specifications: parseSpecsFilter(query.specs),
     });
 
-    return {
+    const result = {
       products: formatCatalogResponse(products),
       total,
     };
+    await catalogCache.set(cacheKey, result);
+    return result;
   },
 
   async getPublicProductBySlug(slug: string) {
+    const cacheKey = catalogCache.keys.productSlug(slug);
+    const cached = await catalogCache.get(cacheKey);
+    if (cached) return cached;
+
     const product = await catalogRepository.findPublicProductBySlug(slug);
     if (!product) {
       throw new AppError(404, ERROR_CODES.PRODUCT_NOT_FOUND);
     }
 
-    return formatCatalogResponse(product);
+    const result = formatCatalogResponse(product);
+    await catalogCache.set(cacheKey, result);
+    return result;
   },
 
   async listAdminProducts(query: AdminListProductsQueryDto) {
@@ -710,7 +791,7 @@ export const catalogService = {
       })),
     };
 
-    return handlePrismaUnique(
+    const created = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
           const created = await catalogRepository.createProductWithDetails(createData, tx);
@@ -736,6 +817,9 @@ export const catalogService = {
         sku: ERROR_CODES.PRODUCT_SKU_EXISTS,
       },
     );
+
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
+    return created;
   },
 
   async updateProduct(id: string, dto: UpdateProductDto, actorId?: string) {
@@ -778,10 +862,10 @@ export const catalogService = {
       brandId: dto.brandId,
     };
 
-    return handlePrismaUnique(
+    const updated = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
-          const updated = await catalogRepository.updateProduct(id, updateData, tx);
+          const result = await catalogRepository.updateProduct(id, updateData, tx);
 
           if (actorId) {
             await auditRepository.createAuditLog(
@@ -796,11 +880,14 @@ export const catalogService = {
             );
           }
 
-          return formatCatalogResponse(updated);
+          return formatCatalogResponse(result);
         });
       },
       { slug: ERROR_CODES.PRODUCT_SLUG_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
+    return updated;
   },
 
   async deleteProduct(id: string, actorId?: string) {
@@ -835,6 +922,8 @@ export const catalogService = {
       }
     });
 
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
+
     if (product.images && product.images.length > 0) {
       const keys = product.images
         .map((img) => s3Service.extractKeyFromUrl(img.url))
@@ -856,10 +945,10 @@ export const catalogService = {
       throw new AppError(409, ERROR_CODES.PRODUCT_SKU_EXISTS);
     }
 
-    return handlePrismaUnique(
+    const variant = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
-          const variant = await catalogRepository.createVariant(
+          const created = await catalogRepository.createVariant(
             {
               productId,
               sku: dto.sku,
@@ -878,18 +967,21 @@ export const catalogService = {
                 actorId,
                 action: AUDIT_ACTIONS.VARIANT_CREATED,
                 targetType: 'ProductVariant',
-                targetId: variant.id,
-                payload: { productId, sku: variant.sku, name: variant.name },
+                targetId: created.id,
+                payload: { productId, sku: created.sku, name: created.name },
               },
               tx,
             );
           }
 
-          return formatCatalogResponse(variant);
+          return formatCatalogResponse(created);
         });
       },
       { sku: ERROR_CODES.PRODUCT_SKU_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
+    return variant;
   },
 
   async updateVariant(id: string, dto: UpdateVariantDto, actorId?: string) {
@@ -905,10 +997,10 @@ export const catalogService = {
       }
     }
 
-    return handlePrismaUnique(
+    const updated = await handlePrismaUnique(
       async () => {
         return prisma.$transaction(async (tx) => {
-          const updated = await catalogRepository.updateVariant(
+          const result = await catalogRepository.updateVariant(
             id,
             {
               sku: dto.sku,
@@ -934,11 +1026,14 @@ export const catalogService = {
             );
           }
 
-          return formatCatalogResponse(updated);
+          return formatCatalogResponse(result);
         });
       },
       { sku: ERROR_CODES.PRODUCT_SKU_EXISTS },
     );
+
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
+    return updated;
   },
 
   async deleteVariant(id: string, actorId?: string) {
@@ -972,6 +1067,8 @@ export const catalogService = {
         );
       }
     });
+
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
   },
 
   // ==================== Images ====================
@@ -1016,6 +1113,7 @@ export const catalogService = {
         return formatCatalogResponse(created);
       });
 
+      await catalogCache.invalidatePatterns(catalogCache.patterns.products);
       return image;
     } catch (error) {
       await s3Service.cleanupObjects([uploaded.fileKey]);
@@ -1050,6 +1148,7 @@ export const catalogService = {
       return formatCatalogResponse(img);
     });
 
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
     return updated;
   },
 
@@ -1060,6 +1159,7 @@ export const catalogService = {
     }
 
     await catalogRepository.deleteImage(id);
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
 
     if (image.url) {
       const key = s3Service.extractKeyFromUrl(image.url);
@@ -1082,6 +1182,7 @@ export const catalogService = {
       displayOrder: dto.displayOrder ?? 0,
     });
 
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
     return formatCatalogResponse(spec);
   },
 
@@ -1097,6 +1198,7 @@ export const catalogService = {
       displayOrder: dto.displayOrder,
     });
 
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
     return formatCatalogResponse(updated);
   },
 
@@ -1107,5 +1209,6 @@ export const catalogService = {
     }
 
     await catalogRepository.deleteSpec(id);
+    await catalogCache.invalidatePatterns(catalogCache.patterns.products);
   },
 };

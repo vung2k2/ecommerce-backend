@@ -117,11 +117,11 @@ route -> middleware -> controller -> service/use case -> repository -> database
 - [x] Cấu hình lint, format, typecheck, build và test scripts.
 - [x] Tách `app.ts` khỏi `server.ts` để dễ integration test.
 - [x] Validate environment variables khi khởi động.
-- [ ] Cấu hình PostgreSQL, Prisma, migration và seed. PostgreSQL/Prisma đã setup; migration và seed sẽ làm khi có model đầu tiên.
+- [x] Cấu hình PostgreSQL, Prisma, migration và seed.
 - [x] Cấu hình Redis và xử lý lỗi kết nối.
 - [x] Tạo Dockerfile nhiều stage và Docker Compose cho local.
 - [x] Chuẩn hóa success response, error response và pagination metadata.
-- [ ] Tạo centralized error handler và mapping domain error sang HTTP status. Handler nền tảng đã có; mapping domain error làm khi bắt đầu module nghiệp vụ.
+- [x] Tạo centralized error handler và mapping domain error sang HTTP status.
 - [x] Thêm request ID, Pino logger và request logging.
 - [x] Thêm Helmet, CORS allowlist, body limit và rate limiting.
 - [x] Thêm graceful shutdown cho HTTP server, Prisma, Redis và worker.
@@ -197,8 +197,8 @@ Acceptance criteria:
 - [x] Nhận ảnh qua multipart API tại đúng domain, validate tại backend và lưu tạm trong thư mục `temp/` trước khi promote.
 - [x] Chỉ lưu URL/object key do backend tạo sau khi upload hợp lệ.
 - [x] Cấu hình S3 lifecycle tự xóa object chưa commit trong `temp/` sau một ngày.
-- [ ] Cache danh sách và chi tiết catalog phổ biến bằng Redis.
-- [ ] Invalidate cache khi admin cập nhật dữ liệu liên quan.
+- [x] Cache danh sách và chi tiết catalog phổ biến bằng Redis.
+- [x] Invalidate cache khi admin cập nhật dữ liệu liên quan.
 
 Acceptance criteria:
 
@@ -325,12 +325,12 @@ Acceptance criteria:
 ### 5.9. OpenAPI và tài liệu vận hành
 
 - [x] Setup sẵn OpenAPI document và Swagger UI tại `/docs` sử dụng `@asteasolutions/zod-to-openapi` làm tiêu chuẩn định nghĩa OpenAPI (Single Source of Truth).
-- [ ] Khi xây dựng xong API nào, mô tả ngay endpoint, schema, authentication và error codes của API đó thông qua Registry và Zod Schema.
-- [ ] Mô tả pagination, filter, sort và các enum trạng thái.
-- [ ] Thêm ví dụ request/response cho checkout và Stripe.
-- [ ] Viết README hướng dẫn local setup, migration, seed, test và Docker.
+- [x] Khi xây dựng xong API nào, mô tả ngay endpoint, schema, authentication và error codes của API đó thông qua Registry và Zod Schema.
+- [x] Mô tả pagination, filter, sort và các enum trạng thái.
+- [x] Thêm ví dụ request/response cho checkout và Stripe.
+- [x] Viết README hướng dẫn local setup, migration, seed, test và Docker.
 - [ ] Viết runbook deploy, rollback, backup, restore và troubleshooting.
-- [ ] Cung cấp `.env.example` không chứa secret.
+- [x] Cung cấp `.env.example` không chứa secret.
 
 Acceptance criteria:
 
@@ -470,7 +470,7 @@ Mục tiêu coverage tối thiểu 80% cho auth, inventory, coupon, order và pa
 - [x] Chạy Caddy, API, worker, PostgreSQL và Redis bằng Docker Compose.
 - [x] Chỉ public port `80/443`; giới hạn SSH theo IP quản trị.
 - [x] Không public PostgreSQL hoặc Redis.
-- [ ] Trỏ hostname miễn phí tới EC2 và để Caddy cấp HTTPS.
+- [x] Trỏ hostname miễn phí tới EC2 và để Caddy cấp HTTPS.
 - [ ] Gắn EC2 IAM role chỉ có quyền cần thiết trên đúng S3 bucket.
 - [x] Cấu hình health check, restart policy, resource limit và log rotation.
 - [x] Lưu production secret trong file quyền hạn chế hoặc secret mechanism phù hợp; không bake vào image.
