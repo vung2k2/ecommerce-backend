@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { ERROR_CODES } from '../src/constants/index.js';
 import { stripeClient, stripeService } from '../src/services/stripe.service.js';
+import { AppError } from '../src/utils/app-error.js';
 
 describe('Stripe Service Unit Tests', () => {
-  it('creates checkout session with correct zero-decimal VND format and metadata', async () => {
+  it('charges a single aggregated VND line item equal to the final order amount', async () => {
     const mockSession = {
       id: 'cs_test_mock_123456',
       url: 'https://checkout.stripe.com/c/pay/cs_test_mock_123456',
@@ -15,15 +17,9 @@ describe('Stripe Service Unit Tests', () => {
     const result = await stripeService.createCheckoutSession({
       orderId: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
       orderNumber: 'ORD-20260913-ABC',
-      amount: 150000n,
+      amount: 135000n,
+      idempotencyKey: 'checkout-session:ORD-20260913-ABC-1234',
       customerEmail: 'buyer@example.com',
-      lineItems: [
-        {
-          name: 'iPhone 16 Pro Case',
-          quantity: 2,
-          unitAmount: 75000n,
-        },
-      ],
       metadata: {
         txnRef: 'ORD-20260913-ABC-1234',
       },
@@ -39,12 +35,12 @@ describe('Stripe Service Unit Tests', () => {
           {
             price_data: {
               currency: 'vnd',
-              unit_amount: 75000,
+              unit_amount: 135000,
               product_data: {
-                name: 'iPhone 16 Pro Case',
+                name: 'Đơn hàng ORD-20260913-ABC',
               },
             },
-            quantity: 2,
+            quantity: 1,
           },
         ],
         metadata: {
@@ -53,6 +49,7 @@ describe('Stripe Service Unit Tests', () => {
           txnRef: 'ORD-20260913-ABC-1234',
         },
       }),
+      { idempotencyKey: 'checkout-session:ORD-20260913-ABC-1234' },
     );
 
     expect(result).toEqual({
@@ -85,6 +82,29 @@ describe('Stripe Service Unit Tests', () => {
 
     expect(constructSpy).toHaveBeenCalled();
     expect(event.type).toBe('checkout.session.completed');
+
+    constructSpy.mockRestore();
+  });
+
+  it('maps webhook signature verification failures to a 400 AppError', () => {
+    const constructSpy = vi
+      .spyOn(stripeClient.webhooks, 'constructEvent')
+      .mockImplementation(() => {
+        throw new Error('No signatures found matching the expected signature for payload');
+      });
+
+    let caught: unknown;
+    try {
+      stripeService.constructWebhookEvent(Buffer.from('{}'), 'bad_signature');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(AppError);
+    expect(caught).toMatchObject({
+      statusCode: 400,
+      code: ERROR_CODES.PAYMENT_CHECKSUM_INVALID,
+    });
 
     constructSpy.mockRestore();
   });

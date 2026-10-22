@@ -12,6 +12,7 @@ import { prisma } from '../../database/prisma.js';
 import { cancelOrderExpiryJob } from '../../jobs/index.js';
 import { stripeService } from '../../services/stripe.service.js';
 import { AppError } from '../../utils/app-error.js';
+import { sortByVariantId } from '../../utils/lock-order.js';
 import { auditRepository } from '../audit/audit.repository.js';
 import { inventoryService } from '../inventory/inventory.service.js';
 import { orderRepository } from '../orders/orders.repository.js';
@@ -26,87 +27,79 @@ export const paymentService = {
     userId: string,
     dto: CreateStripeCheckoutDto,
   ): Promise<{ sessionId: string; checkoutUrl: string }> {
-    return prisma.$transaction(async (tx) => {
-      // 1. Lock order for update to prevent concurrent payment attempts
-      const order = await orderRepository.findForUpdate(dto.orderId, tx);
-      if (!order || order.userId !== userId) {
+    // 1. Transaction ngắn: lock order, validate và chốt txnRef. Không gọi Stripe trong transaction
+    //    để không giữ row lock trong lúc chờ network và không tạo session mồ côi khi rollback.
+    const { order, txnRef } = await prisma.$transaction(async (tx) => {
+      const lockedOrder = await orderRepository.findForUpdate(dto.orderId, tx);
+      if (!lockedOrder || lockedOrder.userId !== userId) {
         throw new AppError(404, ERROR_CODES.ORDER_NOT_FOUND);
       }
 
       if (
-        order.paymentMethod !== PAYMENT_METHODS.STRIPE ||
-        order.status !== ORDER_STATUSES.PENDING_PAYMENT ||
-        order.paymentStatus !== PAYMENT_STATUSES.PENDING
+        lockedOrder.paymentMethod !== PAYMENT_METHODS.STRIPE ||
+        lockedOrder.status !== ORDER_STATUSES.PENDING_PAYMENT ||
+        lockedOrder.paymentStatus !== PAYMENT_STATUSES.PENDING
       ) {
         throw new AppError(422, ERROR_CODES.PAYMENT_ORDER_NOT_PAYABLE);
       }
 
-      // 2. Check for an existing active PENDING payment attempt to prevent duplicate sessions
-      const activePendingTx = await paymentRepository.findActivePendingByOrderId(order.id, tx);
-      let txnRef: string;
-
+      // Tái sử dụng attempt PENDING hiện có: cùng txnRef → cùng idempotency key → Stripe trả lại
+      // cùng session, tránh việc có 2 session cùng thanh toán được cho một đơn.
+      const activePendingTx = await paymentRepository.findActivePendingByOrderId(
+        lockedOrder.id,
+        tx,
+      );
       if (activePendingTx) {
         const isExpired = Date.now() - activePendingTx.createdAt.getTime() > 15 * 60 * 1000;
         if (!isExpired) {
-          txnRef = activePendingTx.txnRef;
-        } else {
-          await paymentRepository.updatePaymentTransaction(
-            activePendingTx.id,
-            { status: PAYMENT_TRANSACTION_STATUSES.EXPIRED },
-            tx,
-          );
-          const suffix = randomBytes(4).toString('hex');
-          txnRef = `${order.orderNumber}-${suffix}`;
-          await paymentRepository.createPaymentTransaction(
-            {
-              orderId: order.id,
-              paymentMethod: PAYMENT_METHODS.STRIPE,
-              txnRef,
-              amount: order.totalAmount,
-              status: PAYMENT_TRANSACTION_STATUSES.PENDING,
-            },
-            tx,
-          );
+          return { order: lockedOrder, txnRef: activePendingTx.txnRef };
         }
-      } else {
-        const suffix = randomBytes(4).toString('hex');
-        txnRef = `${order.orderNumber}-${suffix}`;
-        await paymentRepository.createPaymentTransaction(
-          {
-            orderId: order.id,
-            paymentMethod: PAYMENT_METHODS.STRIPE,
-            txnRef,
-            amount: order.totalAmount,
-            status: PAYMENT_TRANSACTION_STATUSES.PENDING,
-          },
-          tx,
-        );
-      }
-
-      const stripeResult = await stripeService.createCheckoutSession({
-        orderId: order.id,
-        orderNumber: order.orderNumber,
-        amount: order.totalAmount,
-        lineItems: order.items.map((item) => ({
-          name: item.productName,
-          quantity: item.quantity,
-          unitAmount: item.unitPrice,
-        })),
-        metadata: {
-          txnRef,
-          userId,
-        },
-      });
-
-      // Save Stripe session ID to transaction
-      const txRecord = await paymentRepository.findByTxnRef(txnRef, tx);
-      if (txRecord) {
         await paymentRepository.updatePaymentTransaction(
-          txRecord.id,
-          { transactionNo: stripeResult.sessionId },
+          activePendingTx.id,
+          { status: PAYMENT_TRANSACTION_STATUSES.EXPIRED },
           tx,
         );
       }
+
+      const newTxnRef = `${lockedOrder.orderNumber}-${randomBytes(4).toString('hex')}`;
+      await paymentRepository.createPaymentTransaction(
+        {
+          orderId: lockedOrder.id,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
+          txnRef: newTxnRef,
+          amount: lockedOrder.totalAmount,
+          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
+        },
+        tx,
+      );
+
+      return { order: lockedOrder, txnRef: newTxnRef };
+    });
+
+    // 2. Gọi Stripe ngoài transaction, idempotent theo txnRef.
+    const stripeResult = await stripeService.createCheckoutSession({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      amount: order.totalAmount,
+      idempotencyKey: `checkout-session:${txnRef}`,
+      metadata: {
+        txnRef,
+        userId,
+      },
+    });
+
+    // 3. Lưu session ID và audit log lần đầu session được gắn vào attempt.
+    await prisma.$transaction(async (tx) => {
+      const txRecord = await paymentRepository.findByTxnRef(txnRef, tx);
+      if (!txRecord || txRecord.transactionNo === stripeResult.sessionId) {
+        return;
+      }
+
+      await paymentRepository.updatePaymentTransaction(
+        txRecord.id,
+        { transactionNo: stripeResult.sessionId },
+        tx,
+      );
 
       await auditRepository.createAuditLog(
         {
@@ -122,9 +115,9 @@ export const paymentService = {
         },
         tx,
       );
-
-      return stripeResult;
     });
+
+    return stripeResult;
   },
 
   async handleStripeWebhook(
@@ -208,6 +201,56 @@ export const paymentService = {
           return;
         }
 
+        // Defense-in-depth: chỉ xác nhận khi Stripe thực thu đúng số tiền/currency của đơn.
+        const isAmountMatched =
+          session.amount_total !== null &&
+          session.amount_total !== undefined &&
+          BigInt(session.amount_total) === order.totalAmount;
+        if (session.payment_status !== 'paid' || session.currency !== 'vnd' || !isAmountMatched) {
+          logger.warn(
+            {
+              orderId: order.id,
+              sessionId: session.id,
+              paymentStatus: session.payment_status,
+              currency: session.currency,
+              amountTotal: session.amount_total,
+              expectedAmount: order.totalAmount.toString(),
+            },
+            'Stripe webhook: payment status/amount mismatch, order not confirmed',
+          );
+          if (paymentTx) {
+            await paymentRepository.updatePaymentTransaction(
+              paymentTx.id,
+              {
+                transactionNo: session.id,
+                metadata: {
+                  reconciliationRequired: true,
+                  note: 'Stripe session status/amount does not match order',
+                },
+              },
+              tx,
+            );
+          }
+          await auditRepository.createAuditLog(
+            {
+              actorId: null,
+              action: AUDIT_ACTIONS.PAYMENT_WEBHOOK_FAILED,
+              targetType: 'Order',
+              targetId: order.id,
+              payload: {
+                sessionId: session.id,
+                paymentStatus: session.payment_status,
+                currency: session.currency,
+                amountTotal: session.amount_total ?? null,
+                expectedAmount: order.totalAmount.toString(),
+                reconciliationRequired: true,
+              },
+            },
+            tx,
+          );
+          return;
+        }
+
         // Active Order success transition: CONFIRMED + PAID
         await orderRepository.updateOrderStatus(
           order.id,
@@ -218,8 +261,8 @@ export const paymentService = {
           tx,
         );
 
-        // Commit stock reservation
-        for (const item of order.items) {
+        // Commit stock reservation (lock theo thứ tự variantId để tránh deadlock)
+        for (const item of sortByVariantId(order.items)) {
           if (item.variantId) {
             await inventoryService.commitReservation(
               item.variantId,

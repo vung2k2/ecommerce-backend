@@ -9,6 +9,10 @@ import '../modules/catalog/catalog.routes.js';
 import '../modules/inventory/inventory.routes.js';
 import '../modules/cart/cart.routes.js';
 import '../modules/coupons/coupons.routes.js';
+import '../modules/orders/orders.routes.js';
+import '../modules/payments/payments.routes.js';
+import '../modules/reviews/reviews.routes.js';
+import '../modules/reports/reports.routes.js';
 
 const apiDescription = `
 # FE – BE API Integration Guideline

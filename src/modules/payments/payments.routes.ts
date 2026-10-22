@@ -78,6 +78,7 @@ registry.registerPath({
         },
       },
     },
+    400: errorResponse(ERROR_CODES.PAYMENT_CHECKSUM_INVALID),
   },
 });
 

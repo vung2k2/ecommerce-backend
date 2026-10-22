@@ -14,6 +14,7 @@ import { prisma } from '../../database/prisma.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { cancelOrderExpiryJob, scheduleOrderExpiry } from '../../jobs/index.js';
 import { AppError } from '../../utils/app-error.js';
+import { sortByVariantId } from '../../utils/lock-order.js';
 import { calculateCouponDiscount, evaluateItemAvailability } from '../../utils/pricing.js';
 import { auditRepository } from '../audit/audit.repository.js';
 import { cartRepository } from '../cart/cart.repository.js';
@@ -205,8 +206,9 @@ export const orderService = {
       // 8. Generate Unique Order Number
       const orderNumber = generateOrderNumber();
 
-      // 9. Reserve Stock for all items atomically
-      for (const item of cart.items) {
+      // 9. Reserve Stock for all items atomically (lock theo thứ tự variantId để tránh deadlock)
+      const lockOrderedCartItems = sortByVariantId(cart.items);
+      for (const item of lockOrderedCartItems) {
         await inventoryService.reserveStock(item.variantId, item.quantity, orderNumber, userId, tx);
       }
 
@@ -269,7 +271,7 @@ export const orderService = {
 
       // 13. If COD, commit reservation immediately
       if (isCod) {
-        for (const item of cart.items) {
+        for (const item of lockOrderedCartItems) {
           await inventoryService.commitReservation(
             item.variantId,
             item.quantity,
@@ -356,7 +358,7 @@ export const orderService = {
       // 3. Stock release / restitution
       if (order.status === ORDER_STATUSES.PENDING_PAYMENT) {
         // Release reservation
-        for (const item of order.items) {
+        for (const item of sortByVariantId(order.items)) {
           if (item.variantId) {
             await inventoryService.releaseReservation(
               item.variantId,
@@ -369,7 +371,7 @@ export const orderService = {
         }
       } else if (order.status === ORDER_STATUSES.CONFIRMED) {
         // Return committed stock to on-hand
-        for (const item of order.items) {
+        for (const item of sortByVariantId(order.items)) {
           if (item.variantId) {
             const inv = await inventoryRepository.findForUpdate(item.variantId, tx);
             if (inv) {
@@ -514,7 +516,7 @@ export const orderService = {
       // 3. Handle stock transitions
       if (dto.status === ORDER_STATUSES.CANCELLED) {
         if (order.status === ORDER_STATUSES.PENDING_PAYMENT) {
-          for (const item of order.items) {
+          for (const item of sortByVariantId(order.items)) {
             if (item.variantId) {
               await inventoryService.releaseReservation(
                 item.variantId,
@@ -527,7 +529,7 @@ export const orderService = {
           }
         } else {
           // If was CONFIRMED, PROCESSING, SHIPPING, restock onHand back
-          for (const item of order.items) {
+          for (const item of sortByVariantId(order.items)) {
             if (item.variantId) {
               const inv = await inventoryRepository.findForUpdate(item.variantId, tx);
               if (inv) {
@@ -574,7 +576,7 @@ export const orderService = {
         });
       } else if (dto.status === ORDER_STATUSES.PAYMENT_EXPIRED) {
         // Release reservation for expired payment
-        for (const item of order.items) {
+        for (const item of sortByVariantId(order.items)) {
           if (item.variantId) {
             await inventoryService.releaseReservation(
               item.variantId,
@@ -612,7 +614,7 @@ export const orderService = {
         order.status === ORDER_STATUSES.PENDING_PAYMENT
       ) {
         // If transitioning from PENDING_PAYMENT to CONFIRMED (for COD)
-        for (const item of order.items) {
+        for (const item of sortByVariantId(order.items)) {
           if (item.variantId) {
             await inventoryService.commitReservation(
               item.variantId,
@@ -717,7 +719,7 @@ export const orderService = {
       );
 
       // 4. Release reserved inventory
-      for (const item of order.items) {
+      for (const item of sortByVariantId(order.items)) {
         if (item.variantId) {
           await inventoryService.releaseReservation(
             item.variantId,

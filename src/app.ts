@@ -11,6 +11,7 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { ERROR_CODES } from './constants/index.js';
 import { prisma } from './database/prisma.js';
+import { pingRedis } from './database/redis.js';
 import { getOpenApiDocument } from './docs/openapi.js';
 import { translateError } from './i18n/index.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
@@ -22,6 +23,12 @@ export function createApp() {
 
   // Ẩn thông tin Express khỏi response header
   app.disable('x-powered-by');
+
+  // Production chạy sau đúng 1 reverse proxy (Caddy, ghi đè X-Forwarded-For) nên tin 1 hop để
+  // req.ip là IP thật của client. Không bật ở dev/test vì client có thể giả mạo header.
+  if (env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
 
   // Gắn request ID cho từng request và ghi access log bằng Pino.
   app.use(
@@ -90,12 +97,23 @@ export function createApp() {
   });
 
   app.get('/health/ready', async (_req, res) => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-      res.status(200).json({ status: 'ready', dependencies: { database: 'up' } });
-    } catch {
-      res.status(503).json({ status: 'not_ready', dependencies: { database: 'down' } });
+    const [database, redis] = await Promise.all([
+      prisma.$queryRaw`SELECT 1`.then(
+        () => true,
+        () => false,
+      ),
+      pingRedis(),
+    ]);
+    const dependencies = {
+      database: database ? 'up' : 'down',
+      redis: redis ? 'up' : 'down',
+    };
+
+    if (database && redis) {
+      res.status(200).json({ status: 'ready', dependencies });
+      return;
     }
+    res.status(503).json({ status: 'not_ready', dependencies });
   });
 
   // Swagger UI và OpenAPI JSON.

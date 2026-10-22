@@ -23,6 +23,31 @@ export function getRedisClient(): Redis {
   return redisClient;
 }
 
+/**
+ * Ping Redis cho readiness check. Client dùng `maxRetriesPerRequest: null` nên lệnh sẽ bị
+ * queue vô hạn khi mất kết nối; cần timeout để /health/ready trả 503 thay vì treo.
+ */
+export async function pingRedis(timeoutMs = 1000): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([
+      getRedisClient()
+        .ping()
+        .then((reply) => reply === 'PONG'),
+      timeout,
+    ]);
+    return result;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function disconnectRedis(): Promise<void> {
   if (redisClient) {
     try {

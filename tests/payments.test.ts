@@ -232,6 +232,88 @@ describe('Stripe Payments Integration Tests', () => {
       expect(audit?.actorId).toBe(customer1Id);
     });
 
+    it('creates checkout session with totalAmount when order has a discount applied', async () => {
+      const discountedOrder = await prisma.order.create({
+        data: {
+          orderNumber: 'ORD-20260913-DISC',
+          userId: customer1Id,
+          status: ORDER_STATUSES.PENDING_PAYMENT,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
+          paymentStatus: PAYMENT_STATUSES.PENDING,
+          subtotalAmount: 50000000n,
+          discountAmount: 5000000n,
+          shippingFee: 0n,
+          totalAmount: 45000000n,
+          recipientName: 'Customer One',
+          phone: '0987654321',
+          province: 'TP. Ho Chi Minh',
+          district: 'Quan 1',
+          ward: 'Phuong Ben Nghe',
+          streetAddress: '123 Le Loi',
+          items: {
+            create: [
+              {
+                variantId: testVariant.id,
+                productName: 'iPhone 16 Pro',
+                sku: 'IP16PRO-256',
+                unitPrice: 25000000n,
+                quantity: 2,
+                totalPrice: 50000000n,
+              },
+            ],
+          },
+        },
+      });
+
+      const createSpy = vi.spyOn(stripeClient.checkout.sessions, 'create').mockResolvedValue({
+        id: 'cs_discount_session',
+        url: 'https://checkout.stripe.com/c/pay/cs_discount_session',
+      } as never);
+
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/create')
+        .set('Authorization', `Bearer ${customer1Token}`)
+        .send({ orderId: discountedOrder.id });
+
+      expect(res.status).toBe(201);
+      const callArgs = createSpy.mock.calls[0]?.[0] as {
+        line_items?: Array<{ price_data?: { unit_amount?: number } }>;
+      };
+      expect(callArgs?.line_items?.[0]?.price_data?.unit_amount).toBe(45000000);
+    });
+
+    it('returns existing pending transaction and uses idempotency key when called again', async () => {
+      const mockSession = {
+        id: 'cs_test_session_idemp',
+        url: 'https://checkout.stripe.com/c/pay/cs_test_session_idemp',
+      };
+
+      const createSpy = vi.spyOn(stripeClient.checkout.sessions, 'create').mockResolvedValue(
+        mockSession as never,
+      );
+
+      const res1 = await request(app)
+        .post('/api/v1/payments/stripe/create')
+        .set('Authorization', `Bearer ${customer1Token}`)
+        .send({ orderId: stripeOrder.id });
+
+      expect(res1.status).toBe(201);
+
+      const res2 = await request(app)
+        .post('/api/v1/payments/stripe/create')
+        .set('Authorization', `Bearer ${customer1Token}`)
+        .send({ orderId: stripeOrder.id });
+
+      expect(res2.status).toBe(201);
+
+      const txCount = await prisma.paymentTransaction.count({
+        where: { orderId: stripeOrder.id, status: PAYMENT_TRANSACTION_STATUSES.PENDING },
+      });
+      expect(txCount).toBe(1);
+      const [firstCall, secondCall] = createSpy.mock.calls;
+      expect(firstCall?.[1]).toEqual(secondCall?.[1]);
+    });
+
     it('returns 404 if order belongs to another customer', async () => {
       const res = await request(app)
         .post('/api/v1/payments/stripe/create')
@@ -280,7 +362,9 @@ describe('Stripe Payments Integration Tests', () => {
         .set('stripe-signature', 'invalid_signature')
         .send({ id: 'evt_test' });
 
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(400);
+      const parsed = errorResponseSchema.parse(res.body);
+      expect(parsed.error.code).toBe(ERROR_CODES.PAYMENT_CHECKSUM_INVALID);
     });
 
     it('processes checkout.session.completed: updates order to CONFIRMED, payment to PAID, and commits stock', async () => {
@@ -309,6 +393,8 @@ describe('Stripe Payments Integration Tests', () => {
             id: 'cs_test_completed_1',
             object: 'checkout.session',
             payment_status: 'paid',
+            currency: 'vnd',
+            amount_total: Number(stripeOrder.totalAmount),
             metadata: {
               orderId: stripeOrder.id,
               orderNumber: stripeOrder.orderNumber,
@@ -391,6 +477,8 @@ describe('Stripe Payments Integration Tests', () => {
             id: 'cs_test_idemp',
             object: 'checkout.session',
             payment_status: 'paid',
+            currency: 'vnd',
+            amount_total: Number(stripeOrder.totalAmount),
             metadata: {
               orderId: stripeOrder.id,
               orderNumber: stripeOrder.orderNumber,
@@ -491,6 +579,71 @@ describe('Stripe Payments Integration Tests', () => {
       });
       expect(releaseMovement).not.toBeNull();
       expect(releaseMovement?.reservedChange).toBe(-2);
+    });
+
+    it('does not confirm order when session amount_total does not match order totalAmount', async () => {
+      const txnRef = `${stripeOrder.orderNumber}-test-mismatch`;
+      await prisma.paymentTransaction.create({
+        data: {
+          orderId: stripeOrder.id,
+          paymentMethod: PAYMENT_METHODS.STRIPE,
+          txnRef,
+          amount: stripeOrder.totalAmount,
+          status: PAYMENT_TRANSACTION_STATUSES.PENDING,
+        },
+      });
+
+      const mockEvent: Stripe.Event = {
+        id: 'evt_test_mismatch',
+        object: 'event',
+        api_version: '2025-02-24.acacia',
+        created: Math.floor(Date.now() / 1000),
+        livemode: false,
+        pending_webhooks: 0,
+        request: null,
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            id: 'cs_test_mismatch',
+            object: 'checkout.session',
+            payment_status: 'paid',
+            currency: 'vnd',
+            amount_total: 1000,
+            metadata: {
+              orderId: stripeOrder.id,
+              orderNumber: stripeOrder.orderNumber,
+              txnRef,
+            },
+          } as unknown as Stripe.Checkout.Session,
+        },
+      };
+
+      vi.spyOn(stripeClient.webhooks, 'constructEvent').mockReturnValue(mockEvent);
+
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', 'valid_sig')
+        .send({ id: 'evt_test_mismatch' });
+
+      expect(res.status).toBe(200);
+
+      // Order should remain PENDING_PAYMENT
+      const updatedOrder = await prisma.order.findUnique({ where: { id: stripeOrder.id } });
+      expect(updatedOrder?.status).toBe(ORDER_STATUSES.PENDING_PAYMENT);
+      expect(updatedOrder?.paymentStatus).toBe(PAYMENT_STATUSES.PENDING);
+
+      // Inventory should NOT be committed
+      const inventory = await prisma.inventory.findFirst({
+        where: { variantId: testVariant.id },
+      });
+      expect(inventory?.onHand).toBe(10);
+      expect(inventory?.reserved).toBe(2);
+
+      // Audit log should record failure
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: AUDIT_ACTIONS.PAYMENT_WEBHOOK_FAILED, targetId: stripeOrder.id },
+      });
+      expect(audit).not.toBeNull();
     });
   });
 });
